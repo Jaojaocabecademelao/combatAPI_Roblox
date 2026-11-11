@@ -18,4 +18,4 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 
 - Manifest do `AttackCatalog` passa da versão 1 para 2. Manifest v1 permanece aceito somente quando as definições atuais não usam `CustomData`.
 - Hashes/snapshots sem overrides mantêm o campo de override omitido.
-- A cobertura inclui testes focados de validação/merge, manifest v2, migração de schema e rollback in-place. A execução da suíte completa e do benchmark em runtime Roblox/Studio não foi realizada neste ambiente; esta entrada não afirma validação de ponta a ponta.
+- A cobertura inclui testes focados de validação/merge, manifest v2, migração de schema, rollback in-place e comparação de replay/hash com overrides derivados de frames. A execução da suíte completa e do benchmark em runtime Roblox/Studio não foi realizada neste ambiente; esta entrada não afirma validação de ponta a ponta.

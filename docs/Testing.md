@@ -21,11 +21,15 @@ também verifica se o inventário documentado corresponde aos scripts presentes.
 - `CombatAttackCatalogRollbackTest.server.lua`: manifest v2, comparação canônica
   e rejeição de manifest v1 quando definições usam `CustomData`.
 - `CombatCollisionRollbackTest.server.lua`: captura, validação e restauração
-  in-place de `CustomDataOverrides` por instância.
+  in-place de overrides distintos em duas instâncias da mesma definição.
 - `CombatTopologyRebuildRollbackTest.server.lua`: reconstrução de instâncias e
   rejeição de overrides inválidos no caminho de rebuild da topologia.
 - `CombatStateSchemaTest.server.lua`: migração de schema 2 para 3 e rejeição de
   versões sem migração ou futuras.
+- `CombatCustomDataReplayTest.server.lua`: calcula overrides a partir de contadores
+  de frame, compara hashes canônicos entre execuções equivalentes e verifica que
+  um override divergente é identificado pelo comparador de replay. O teste também
+  usa o manifest do catálogo como fingerprint de conteúdo.
 - `CombatReplayRecordingTest.server.lua` e `CombatDeterminismTest.server.lua`:
   infraestrutura geral de replay/determinismo. O consumidor deve garantir que
   overrides usados em gameplay derivem apenas de inputs e estado determinístico.
@@ -39,3 +43,6 @@ comparar o tamanho serializado do snapshot com e sem os overrides. Execute com
 o atributo `RunBenchmark=true`. Os resultados precisam ser coletados no mesmo
 ambiente e com a mesma quantidade de instâncias; este repositório não registra
 números medidos neste ambiente de edição.
+
+
+O andamento por fase e as validações ainda pendentes estão registrados em [IMPLEMENTATION_STATUS](IMPLEMENTATION_STATUS.md).

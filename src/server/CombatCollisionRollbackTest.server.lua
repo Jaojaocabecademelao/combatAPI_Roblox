@@ -21,21 +21,32 @@ collision:SetAttackCatalog(attackCatalog)
 local attacker = world:CreateEntity()
 local target = world:CreateEntity()
 local hitbox = Hitbox.new({ Shape = "Box", Position = Vector3.new(0, 0, 0), Size = Vector3.new(2, 2, 2) })
+local secondHitbox = Hitbox.new({ Shape = "Box", Position = Vector3.new(1000, 0, 0), Size = Vector3.new(2, 2, 2) })
 local hurtbox = Hurtbox.new({ Shape = "Box", Position = Vector3.new(1, 0, 0), Size = Vector3.new(2, 2, 2) })
 local attackInstance = AttackInstance.new(attackDefinition, attacker, world.IdGenerator, {
 	CustomDataOverrides = { Radius = 5 },
 })
+local secondInstance = AttackInstance.new(attackDefinition, attacker, world.IdGenerator, {
+	CustomDataOverrides = { Radius = 8, Mode = "Burst" },
+})
 attackInstance:Activate()
+secondInstance:Activate()
 attackInstance:AddHitbox(hitbox)
+secondInstance:AddHitbox(secondHitbox)
 attacker:AddComponent(hitbox)
+attacker:AddComponent(secondHitbox)
 target:AddComponent(hurtbox)
 
 collision:Step(1 / 60, 1, 1 / 60)
 assert(#collision:GetResults() == 1, "Test setup should produce one contact")
 local snapshot = collision:CaptureRollbackState()
-assert(snapshot.AttackInstances[1].CustomDataOverrides
-	and snapshot.AttackInstances[1].CustomDataOverrides.Radius == 5,
-	"Collision snapshot must capture the per-instance CustomData override")
+local savedOverridesById = {}
+for _, savedAttack in ipairs(snapshot.AttackInstances) do
+	savedOverridesById[savedAttack.Id] = savedAttack.CustomDataOverrides
+end
+assert(savedOverridesById[attackInstance.Id] and savedOverridesById[attackInstance.Id].Radius == 5
+	and savedOverridesById[secondInstance.Id] and savedOverridesById[secondInstance.Id].Radius == 8,
+	"Collision snapshot must preserve different overrides for two instances of the same definition")
 local valid, validationError = collision:ValidateRollbackState(snapshot)
 assert(valid, "Captured collision snapshot must validate: " .. tostring(validationError))
 
@@ -46,6 +57,11 @@ local laterInstance = AttackInstance.new(attackDefinition, attacker, world.IdGen
 })
 attackInstance.CustomDataOverrides = laterInstance.CustomDataOverrides
 attackInstance.OffensiveProperties = laterInstance.OffensiveProperties
+local secondLaterInstance = AttackInstance.new(attackDefinition, attacker, world.IdGenerator, {
+	CustomDataOverrides = { Radius = 11, Mode = "Later" },
+})
+secondInstance.CustomDataOverrides = secondLaterInstance.CustomDataOverrides
+secondInstance.OffensiveProperties = secondLaterInstance.OffensiveProperties
 hitbox.Position = Vector3.new(100, 0, 0)
 collision:Step(1 / 60, 2, 2 / 60)
 assert(#collision:GetResults() == 0, "Mutated test setup should no longer produce contact")
@@ -59,7 +75,11 @@ assert(collision.Frame == 1, "Collision frame was not restored")
 assert(attackInstance.CustomDataOverrides.Radius == 5
 	and attackInstance.OffensiveProperties.CustomData.Radius == 5
 	and attackInstance.OffensiveProperties.CustomData.Mode == "Charge",
-	"In-place rollback must restore the saved override and reconstructed effective CustomData")
+	"In-place rollback must restore the first saved override and effective CustomData")
+assert(secondInstance.CustomDataOverrides.Radius == 8
+	and secondInstance.OffensiveProperties.CustomData.Radius == 8
+	and secondInstance.OffensiveProperties.CustomData.Mode == "Burst",
+	"Rollback must independently restore a second instance of the same definition")
 assert(snapshot.AttackCatalogManifest and snapshot.AttackInstances[1].DefinitionVersion == 1,
 	"Collision snapshot must include versioned attack definition compatibility")
 assert(collision.ActivePairs[hitbox] and collision.ActivePairs[hitbox][hurtbox], "Active contact pair was not restored")

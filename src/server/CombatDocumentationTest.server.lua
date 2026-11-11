@@ -112,7 +112,7 @@ local documentedTests = {
 	"CombatCharacterTest.server.lua", "CombatCollisionRollbackTest.server.lua",
 	"CombatComboRollbackTest.server.lua", "CombatComboTest.server.lua",
 	"CombatCounterRollbackIntegrationTest.server.lua", "CombatCounterTest.server.lua",
-	"CombatCustomStatusRollbackTest.server.lua", "CombatDamageRollbackIntegrationTest.server.lua",
+	"CombatCustomStatusRollbackTest.server.lua", "CombatCustomDataReplayTest.server.lua", "CombatDamageRollbackIntegrationTest.server.lua",
 	"CombatDefenseRollbackIntegrationTest.server.lua", "CombatDefenseTest.server.lua",
 	"CombatDocumentationExamplesTest.server.lua", "CombatDocumentationTest.server.lua",
 	"CombatEventAPITest.server.lua", "CombatExternalEffectGateTest.server.lua",
