@@ -63,8 +63,9 @@ essas duas execuções não são suficientes para concluir regressão ou ganho.
 
 ## Pendências para fechar as fases
 
-A suíte automatizada já passou no Roblox Studio. Para fechar a validação geral,
-investigar a duplicação no place e os avisos de asset, executar
+A suíte anterior de 61 módulos passou no Roblox Studio, mas o novo teste
+consumidor ainda não foi executado após a correção da Simulation pública. Para
+fechar a validação geral, investigar a duplicação no place e os avisos de asset, executar
 `CombatMultiplayerSmokeTest.server.lua` com dois clientes e obter uma linha de
 base pré-CustomData do `CombatStabilizationBenchmark.server.lua` com os mesmos
 atributos e ambiente.

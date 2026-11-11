@@ -2,6 +2,18 @@
 
 Este arquivo registra mudanças do contrato público e de formatos de estado. A versão pública declarada em `src/shared/CombatAPI.lua` permanece **CombatAPI 1**; a política de SemVer/depreciação está em [`PUBLIC_API.md`](PUBLIC_API.md). As versões de schema/manifest são internas aos respectivos formatos, independentes da versão SemVer do pacote.
 
+## 0.2.0 — Simulation pública para consumidores (2026-11-11)
+
+### Adicionado
+
+- Export de `Simulation` em `CombatAPI`, para que consumidores possam inicializar o pipeline público antes de capturar/restaurar estado de combate.
+- Exemplo e teste consumidor atualizados para criar uma Simulation usando apenas o facade público.
+- `CombatPublicSurfaceTest` agora verifica a construção e associação de uma Simulation ao World.
+
+### Limites
+
+- A nova superfície e o consumidor ainda precisam ser executados no Roblox Studio; a execução anterior cobriu 61 módulos, antes da adição do teste consumidor.
+
 ## CombatAPI 1 — suporte a `CustomData` em ataques (2026-11-11)
 
 ### Adicionado
@@ -113,7 +125,7 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 - O runner evita execução duplicada por sessão e executa apenas um módulo por nome quando o place contém cópias repetidas; o teste de rollback de colisão usa uma entidade distinta para a segunda hitbox.
 - O smoke multiplayer continua separado, pois depende de dois clientes conectados.
 - `CombatCustomDataConsumerTest.lua` exercita o consumidor de referência através somente do facade público, incluindo rollback/replay e gravação serializada.
-- A referência de SemVer de `API.md` foi alinhada ao pacote atual `0.1.4`; `Conventions.md` agora aponta para a política de compatibilidade documentada.
+- A referência de SemVer de `API.md` foi alinhada ao pacote `0.1.4`; `Conventions.md` aponta para a política de compatibilidade documentada.
 
 ### Limites
 
