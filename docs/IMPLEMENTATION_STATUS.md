@@ -19,7 +19,7 @@ os resultados dessa execução.
 
 ## Verificações estáticas realizadas
 
-- O inventário documentado contém exatamente os scripts `*Test.server.lua` existentes (incluindo o teste de superfície pública adicionado nesta continuação).
+- O inventário documentado contém exatamente os módulos automatizados `*Test.lua`; o smoke multiplayer permanece registrado separadamente como Script.
 - Os pontos centrais de `CustomData` estão presentes: normalização, merge raso,
   fallback do `HitProcessor`, manifest v2, migração do schema v3, snapshots e
   encaminhamento aos eventos públicos.
@@ -27,7 +27,7 @@ os resultados dessa execução.
 
 ## Critério para fechar as fases
 
-Executar no Roblox Studio a suíte completa de scripts `*Test.server.lua`, incluindo
+Executar no Roblox Studio a suíte completa de módulos `*Test.lua`, incluindo
 `CombatDocumentationTest`, `CombatDocumentationExamplesTest` e
 `CombatCustomDataReplayTest`. Em seguida, executar
 `CombatStabilizationBenchmark.server.lua` com os mesmos atributos e ambiente da
@@ -44,7 +44,7 @@ testes passaram no Roblox Studio.
 |---|---|---|
 | A — Consumidor de referência | Parcial, exemplo preparado | `docs/examples/CustomDataConsumer.server.lua` usa exports públicos para definir ataque, override, catálogo, hitbox e snapshot/restore. Precisa ser executado em Studio; lacunas encontradas devem ser registradas antes de declarar aceite. |
 | B — Contrato estável | Parcial, contrato documentado | `docs/PUBLIC_API.md`, `CombatAPI.SemVer`, `CombatAPITypes`, exports públicos e `CombatPublicSurfaceTest` adicionados. Tipagem estrita completa (`--!strict` em toda a superfície), política pós-1.0.0 validada e mapeamento específico de todos os códigos de erro ainda não estão concluídos. |
-| C — Infraestrutura | Parcial, ampliada | Toolchain fixa inclui `luau-lsp` e Wally 0.3.2; GitHub Actions valida JSON/inventário, gera build Rojo e pacote Wally privado de prévia, publica artefatos de validação e preserva diagnósticos consultivos. Execução de runtime automatizada e publicação Wally continuam pendentes. |
+| C — Infraestrutura | Runner implementado; validação Studio pendente | Os testes automatizados foram migrados para módulos executáveis sequencialmente pelo `CombatTestRunner.server.lua`, com timeout e resultado por módulo. CI valida o inventário, compila Rojo e o pacote Wally privado de prévia, publica artefatos e preserva diagnósticos consultivos. Execução real no Studio e publicação Wally continuam pendentes. |
 
 A prioridade da Etapa D permanece pendente (decisão D8). As Etapas A e B continuam pré-requisitos antes de iniciar novas capacidades.
 
@@ -56,7 +56,7 @@ A prioridade da Etapa D permanece pendente (decisão D8). As Etapas A e B contin
 | Tipos públicos Luau | Ampliado | `CombatAPITypes.lua` agora descreve CustomData, Attack, AttackInstance, OffensiveProperties, APIError, APIResult e World; ainda requer análise Luau/Studio. |
 | Códigos de erro | Implementado | União documentada, registro congelado, `APIError.isCode` e validação de argumentos. |
 | Invariantes de resultado | Implementado | Sucesso não aceita Error; falha exige Error; `APIResult.is` disponível. |
-| Testes de contrato | Preparados | `CombatAPIPublicContractTest.server.lua`; execução em Studio pendente. |
+| Testes de contrato | Preparados | `CombatAPIPublicContractTest.lua`; execução em Studio pendente. |
 
 O mapeamento de falhas do facade de plugins agora preserva o código interno em `Error.Context.ResolverCode`. A tipagem estática foi ampliada, mas ainda não é correto declarar `--!strict` em toda a superfície pública: os módulos de implementação e os tipos de sistemas/resolvers precisam ser tipados por partes para evitar falsos contratos ou uma migração que apenas silencie erros com `any`.
 
@@ -75,7 +75,7 @@ O mapeamento de falhas do facade de plugins agora preserva o código interno em 
 ## Continuação — evidências de testes e diagnósticos (11 nov 2026)
 
 - `scripts/create_test_report.py` gera um relatório em Markdown com uma linha
-  para cada script `*Test.server.lua` encontrado na árvore ativa.
+  para cada módulo automatizado e inclui o smoke multiplayer manual.
 - O artefato `combatapi-studio-validation-place` agora inclui o place Rojo e o
   modelo de relatório, permitindo registrar resultados reais por script.
 - O job de análise Luau não baixa mais um arquivo global externo: o `luau-lsp`
@@ -93,4 +93,4 @@ O mapeamento de falhas do facade de plugins agora preserva o código interno em 
 - A lista de inclusão limita o pacote a `/src/init.lua` e `/src/shared/**`; os scripts de teste e o código de servidor não fazem parte do pacote compartilhado.
 - O pacote está marcado como `private = true`. Isso permite validar a estrutura sem publicar nem presumir que o escopo Wally esteja reservado ao proprietário.
 - CI gera um ZIP de prévia com `wally package`; isso valida o empacotamento, não a instalação num jogo consumidor nem a publicação no registry.
-- O runner central de runtime permanece pendente. Os atuais `*Test.server.lua` são Scripts independentes que executam automaticamente; um runner sequencial confiável exige uma migração deliberada para módulos/contratos de teste, não apenas um script que os reative e possa duplicar efeitos.
+- O runner central já executa os módulos `*Test.lua` sequencialmente no Studio. `CombatMultiplayerSmokeTest.server.lua` permanece manual e separado por exigir dois clientes. O runner e a suíte ainda precisam de validação real no Roblox Studio; CI não declara os testes de runtime aprovados.

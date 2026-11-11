@@ -43,8 +43,9 @@ sem importar módulos internos diretamente.
 
 ## Testes
 
-Os scripts `*Test.server.lua` ficam em `src/server` e executam no Roblox Studio.
-Consulte [`docs/Testing.md`](docs/Testing.md). A CI valida o JSON e o inventário, gera o place Rojo e uma prévia de pacote Wally
+Os módulos `*Test.lua` ficam em `src/server` e são executados em sequência pelo
+`CombatTestRunner.server.lua` no Roblox Studio. Consulte
+[`docs/Testing.md`](docs/Testing.md). A CI valida o JSON e o inventário, gera o place Rojo e uma prévia de pacote Wally
 privado. Os artefatos incluem um modelo para registrar a execução manual no Studio.
 A análise Luau dos módulos de contrato é consultiva e seus diagnósticos são
 publicados separadamente como artefato; a CI ainda não executa os testes de runtime do Roblox.

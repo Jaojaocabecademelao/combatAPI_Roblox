@@ -12,7 +12,7 @@ The current implementation does **not** claim complete combat rollback. It rejec
 
 Direct `RestoreFrame()` refuses to run while a rollback request is pending. After a successful direct restore or replay that ends before the former current frame, PredictionResolver history is truncated to the restored frame; if a participant has no prediction baseline at that exact frame, its prediction state is reset and must be begun again by the caller. This prevents future prediction frames from remaining attached to an older World state.
 
-Read `ROLLBACK_SYSTEM_CHANGES.md` for the recorded implementation boundary and use `CombatRollbackTest.server.lua` for concrete accepted/rejected cases. Do not interpret a local successful rollback of a supported test World as production-ready match rollback.
+Read `ROLLBACK_SYSTEM_CHANGES.md` for the recorded implementation boundary and use `CombatRollbackTest.lua` for concrete accepted/rejected cases. Do not interpret a local successful rollback of a supported test World as production-ready match rollback.
 
 `RollbackResolver:GetMetrics()` exposes counters for captured snapshots,
 started/completed/failed rollbacks, replayed frames, and current history

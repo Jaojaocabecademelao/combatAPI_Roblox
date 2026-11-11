@@ -7,6 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 TEST_DIR = ROOT / "src" / "server"
+MANUAL_TESTS = ("CombatMultiplayerSmokeTest.server.lua",)
 
 
 def main() -> None:
@@ -19,9 +20,9 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    tests = sorted(path.name for path in TEST_DIR.glob("*Test.server.lua"))
+    tests = sorted(path.name for path in TEST_DIR.glob("*Test.lua"))
     if not tests:
-        raise SystemExit("No *Test.server.lua scripts found")
+        raise SystemExit("No *Test.lua modules found")
 
     lines = [
         "# CombatAPI — relatório de execução no Roblox Studio",
@@ -38,9 +39,9 @@ def main() -> None:
         "",
         "## Suíte automatizada",
         "",
-        f"Total de scripts inventariados: **{len(tests)}**",
+        f"Total de módulos automatizados: **{len(tests)}**",
         "",
-        "| Resultado | Script | Observações / erro relevante |",
+        "| Resultado | Módulo | Observações / erro relevante |",
         "|---|---|---|",
     ]
     lines.extend(f"| Pendente | `{name}` | |" for name in tests)
@@ -49,12 +50,25 @@ def main() -> None:
             "",
             "## Resultado geral",
             "",
-            "- [ ] Todos os scripts concluíram sem erros",
+            "- [ ] Todos os módulos automatizados concluíram sem erros",
             "- [ ] `CombatDocumentationTest` concluiu",
             "- [ ] `CombatDocumentationExamplesTest` concluiu",
             "- [ ] `CombatCustomDataReplayTest` concluiu",
             "- [ ] `CombatAPIPublicContractTest` concluiu",
             "- [ ] Não houve erros não relacionados aos testes no Output",
+            "",
+            "## Testes manuais/separadamente condicionados",
+            "",
+            "| Resultado | Teste | Observações / erro relevante |",
+            "|---|---|---|",
+        ]
+    )
+    lines.extend(
+        f"| Pendente | `{name}` | Requer configuração específica do Studio |"
+        for name in MANUAL_TESTS
+    )
+    lines.extend(
+        [
             "",
             "## Benchmark",
             "",

@@ -2,22 +2,29 @@
 
 ## Execução
 
-Os testes automatizados do projeto são scripts `*Test.server.lua` em `src/server/`.
-Eles devem ser executados no Roblox Studio, com a árvore Rojo montada conforme
-`default.project.json`. Cada script encerra com uma mensagem `PASS` quando suas
-asserções terminam sem erro.
+Os testes automatizados do projeto são módulos `*Test.lua` em `src/server/`.
+No Roblox Studio, `CombatTestRunner.server.lua` descobre esses módulos, executa
+suas funções em ordem alfabética, aplica timeout de 30 segundos por teste e
+imprime um resultado estruturado por módulo. Uma falha é reportada no Output e
+no final da execução; timeout interrompe a suíte para evitar continuar com um
+teste possivelmente ainda ativo.
 
 A suíte cobre módulos isolados e integrações entre World, Simulation, combate,
 colisão, eventos, rollback, determinismo e replay. `CombatDocumentationTest`
-também verifica se o inventário documentado corresponde aos scripts presentes.
+também verifica se o inventário documentado corresponde aos módulos presentes.
 O script `scripts/validate_test_inventory.py` faz a mesma checagem sem Roblox e é
 executado pela CI antes do build Rojo.
 
+`CombatMultiplayerSmokeTest.server.lua` permanece fora do runner: exige dois
+clientes e só inicia quando o atributo `CombatMultiplayerSmokeTest` em
+`ReplicatedStorage` é definido como `true`. Execute-o separadamente num servidor
+de teste com dois clientes.
+
 ## Superfície pública e consumidor de referência
 
-- `CombatPublicSurfaceTest.server.lua`: verifica exports públicos, versão SemVer,
+- `CombatPublicSurfaceTest.lua`: verifica exports públicos, versão SemVer,
   versões de manifest/schema e uso público de `AttackCatalog`.
-- `CombatAPIPublicContractTest.server.lua`: verifica o registro de códigos estáveis,
+- `CombatAPIPublicContractTest.lua`: verifica o registro de códigos estáveis,
   imutabilidade de `APIError`/`APIResult` e invariantes de sucesso/falha.
 - `examples/CustomDataConsumer.server.lua`: exemplo executável em um place de
   teste. Cria o World, catálogo, ataque, override derivado de frames, hitbox e
@@ -26,24 +33,24 @@ executado pela CI antes do build Rojo.
 
 ## Cobertura de `CustomData`
 
-- `CombatAttackCustomDataTest.server.lua`: validação, limites, cópia defensiva,
+- `CombatAttackCustomDataTest.lua`: validação, limites, cópia defensiva,
   congelamento recursivo, normalização de `{}`, merge raso, compartilhamento sem
   override e compatibilidade das assinaturas legadas de `AttackInstance.new`.
-- `CombatAttackPropertiesTest.server.lua`: integração de propriedades ofensivas
+- `CombatAttackPropertiesTest.lua`: integração de propriedades ofensivas
   no caminho de processamento de hit, incluindo fallback de propriedades.
-- `CombatAttackCatalogRollbackTest.server.lua`: manifest v2, comparação canônica
+- `CombatAttackCatalogRollbackTest.lua`: manifest v2, comparação canônica
   e rejeição de manifest v1 quando definições usam `CustomData`.
-- `CombatCollisionRollbackTest.server.lua`: captura, validação e restauração
+- `CombatCollisionRollbackTest.lua`: captura, validação e restauração
   in-place de overrides distintos em duas instâncias da mesma definição.
-- `CombatTopologyRebuildRollbackTest.server.lua`: reconstrução de instâncias e
+- `CombatTopologyRebuildRollbackTest.lua`: reconstrução de instâncias e
   rejeição de overrides inválidos no caminho de rebuild da topologia.
-- `CombatStateSchemaTest.server.lua`: migração de schema 2 para 3 e rejeição de
+- `CombatStateSchemaTest.lua`: migração de schema 2 para 3 e rejeição de
   versões sem migração ou futuras.
-- `CombatCustomDataReplayTest.server.lua`: calcula overrides a partir de contadores
+- `CombatCustomDataReplayTest.lua`: calcula overrides a partir de contadores
   de frame, compara hashes canônicos entre execuções equivalentes e verifica que
   um override divergente é identificado pelo comparador de replay. O teste também
   usa o manifest do catálogo como fingerprint de conteúdo.
-- `CombatReplayRecordingTest.server.lua` e `CombatDeterminismTest.server.lua`:
+- `CombatReplayRecordingTest.lua` e `CombatDeterminismTest.lua`:
   infraestrutura geral de replay/determinismo. O consumidor deve garantir que
   overrides usados em gameplay derivem apenas de inputs e estado determinístico.
 
@@ -58,7 +65,7 @@ ambiente e com a mesma quantidade de instâncias; este repositório não registr
 números medidos neste ambiente de edição.
 
 
-O inventário documentado inclui `CombatPublicSurfaceTest.server.lua`.
+O inventário documentado inclui `CombatPublicSurfaceTest.lua`.
 
 O andamento por fase e as validações ainda pendentes estão registrados em
 [IMPLEMENTATION_STATUS](IMPLEMENTATION_STATUS.md).
@@ -80,17 +87,18 @@ teste.
 
 ## Registro reproduzível da execução
 
-Gere um modelo com uma linha para cada script atualmente inventariado:
+Gere um modelo com uma linha para cada módulo automatizado e teste manual:
 
 ```sh
 python3 scripts/create_test_report.py --output combatapi-studio-test-report.md
 ```
 
-Abra o place de validação no Roblox Studio e inicie uma sessão de teste. Os
-Scripts `*Test.server.lua` estão montados em `ServerScriptService.Server` e
-executam como scripts independentes. Registre no modelo o resultado observado
-de cada um, a versão do Studio, o commit e eventuais erros do Output. Não marque
-um teste como aprovado apenas porque o place abriu ou foi compilado pelo Rojo.
+Abra o place de validação no Roblox Studio e inicie uma sessão de teste. O
+`CombatTestRunner.server.lua` executa os módulos `*Test.lua` e registra cada
+resultado no Output. O smoke multiplayer fica separado e requer a configuração
+descrita acima. Registre no modelo os resultados observados, a versão do Studio,
+o commit e eventuais erros do Output. Não marque um teste como aprovado apenas
+porque o place abriu ou foi compilado pelo Rojo.
 
 A CI anexa o modelo ao artefato `combatapi-studio-validation-place`. A análise
 Luau consultiva também publica o log completo e o código de saída em
@@ -112,4 +120,8 @@ O manifesto permanece `private = true`. Não publique até confirmar a disponibi
 
 ## Limite do runner central
 
-A suíte atual é composta por Scripts Roblox independentes. Eles já iniciam automaticamente no servidor e vários testes configuram eventos/estado próprios. Não existe ainda um protocolo comum de descoberta, execução, timeout e resultado estruturado. Por isso, o relatório atual é manual e o build CI não é apresentado como execução da suíte. A centralização exige migrar os casos para módulos de teste com uma interface comum (ou adotar um framework e adaptar cada caso), preservando explicitamente os testes de integração que dependem do ciclo de vida do servidor.
+A suíte automatizada usa um contrato comum: cada `*Test.lua` retorna uma função,
+e o runner executa uma função por vez com isolamento de falha e timeout. A CI
+valida o inventário e compila o place, mas não executa módulos Roblox; a aprovação
+de runtime continua dependendo da execução no Studio. O smoke multiplayer é um
+teste separado porque depende de dois clientes conectados.

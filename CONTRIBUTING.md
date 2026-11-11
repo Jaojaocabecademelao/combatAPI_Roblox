@@ -6,7 +6,8 @@
 2. Keep authoritative gameplay state serializable and deterministic. Do not introduce wall-clock reads or uncontrolled randomness into simulation paths.
 3. Preserve the public API boundary. Internal modules are not automatically public because they can be required by path.
 4. For snapshot, replay, network, or catalog changes, update the corresponding contract version/migration and tests in the same change.
-5. Add or update a focused `*Test.server.lua` test and update `docs/Testing.md`.
+5. Add or update a focused `*Test.lua` ModuleScript that returns a test function,
+   then update `docs/Testing.md` and the inventory in `CombatDocumentationTest.lua`.
 
 ## Local validation
 
@@ -27,7 +28,11 @@ e a árvore compartilhada; ele ainda não foi publicado no registry. A análise 
 está em fase consultiva; os diagnósticos completos são preservados em um artefato
 separado e devem ser revisados antes de torná-la bloqueante.
 
-Open the generated place in Roblox Studio and run the server test scripts. The current test suite uses Roblox runtime APIs and is not yet executable as a standalone command-line test suite. Do not report Studio tests as passing unless they were actually run.
+Open the generated place in Roblox Studio. `CombatTestRunner.server.lua`
+executes the `*Test.lua` modules sequentially; `CombatMultiplayerSmokeTest.server.lua`
+is run separately with two clients. The suite uses Roblox runtime APIs and is
+not executable as a standalone command-line test suite. Do not report Studio
+tests as passing unless they were actually run.
 
 ## Change requirements
 

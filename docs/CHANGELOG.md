@@ -70,7 +70,8 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 ### Added
 
 - Added `scripts/create_test_report.py`, which creates a Studio execution report
-  containing every current `*Test.server.lua` script and benchmark fields.
+  containing every automated `*Test.lua` module, the manual smoke test, and
+  benchmark fields.
 - The Studio validation artifact now includes the generated report template.
 - The Luau analysis job preserves its full output and exit code as a separate
   artifact instead of discarding advisory diagnostics.
@@ -100,5 +101,18 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 ### Limits
 
 - The Wally package remains private and has not been published.
-- A central runtime test runner remains pending; the current suite consists of independent Roblox server Scripts.
 - Package installation in a separate consumer place and Roblox Studio runtime validation remain pending.
+
+
+## Infraestrutura de testes — runner sequencial
+
+### Alterado
+
+- Os testes automatizados em `*Test.server.lua` foram migrados para módulos `*Test.lua` com função de execução.
+- `CombatTestRunner.server.lua` executa os módulos em ordem alfabética, captura falhas, aplica timeout por teste e interrompe a suíte em caso de timeout.
+- O smoke multiplayer continua separado, pois depende de dois clientes conectados.
+
+### Limites
+
+- O runner, a suíte e o smoke multiplayer ainda precisam ser executados e validados no Roblox Studio.
+- A CI valida inventário/build, mas não afirma que testes Roblox de runtime passaram.
