@@ -5,11 +5,23 @@
 `src/shared/CombatAPI.lua` returns a frozen module table. Current methods and exported types:
 
 `CombatAPI.Version` remains the integer API generation (`1`) for existing
-consumers. `CombatAPI.SemVer` reports the package release version (`0.1.0`),
+consumers. `CombatAPI.SemVer` reports the package release version (`0.2.0`),
 while `CombatAPI.Contracts` exposes independently versioned serialized
 contracts, including the attack catalog manifest and combat state schema.
 See [PUBLIC_API.md](PUBLIC_API.md) for the compatibility boundary and
 versioning/deprecation policy.
+
+`World.new` does not create a Simulation automatically. Create one through the
+public facade before stepping or capturing a complete combat state:
+
+```lua
+local world = CombatAPI.CreateWorld()
+local simulation = CombatAPI.Simulation.new(world, { Seed = 17 })
+local snapshot = world:CaptureCombatState()
+```
+
+`Simulation.new(world, options)` associates itself with the World. A fixed seed
+makes the deterministic random stream reproducible across equivalent worlds.
 
 `world:GetCombatStateSchema()` includes the combat pipeline, hitstop, combo,
 juggle, and cancel resolver providers by default. Collision-derived resolvers

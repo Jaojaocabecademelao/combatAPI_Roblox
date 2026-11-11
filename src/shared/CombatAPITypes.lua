@@ -95,4 +95,13 @@ export type World = {
 	Destroy: (self: World) -> boolean,
 }
 
+export type Simulation = {
+	World: World,
+	Frame: number,
+	FixedDeltaTime: number,
+	Step: (self: Simulation) -> (),
+	Update: (self: Simulation, deltaTime: number) -> number,
+	CaptureState: (self: Simulation) -> any,
+}
+
 return table.freeze({})

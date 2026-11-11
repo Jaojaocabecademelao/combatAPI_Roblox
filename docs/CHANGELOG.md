@@ -1,6 +1,6 @@
 # Changelog
 
-Este arquivo registra mudanças do contrato público e de formatos de estado. A versão pública declarada em `src/shared/CombatAPI.lua` permanece **CombatAPI 1**. O projeto ainda não definiu uma política formal de SemVer para releases; as versões de schema/manifest abaixo são versões internas dos respectivos formatos, não números de release.
+Este arquivo registra mudanças do contrato público e de formatos de estado. A versão pública declarada em `src/shared/CombatAPI.lua` permanece **CombatAPI 1**; a política de SemVer/depreciação está em [`PUBLIC_API.md`](PUBLIC_API.md). As versões de schema/manifest são internas aos respectivos formatos, independentes da versão SemVer do pacote.
 
 ## CombatAPI 1 — suporte a `CustomData` em ataques (2026-11-11)
 
@@ -101,7 +101,7 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 ### Limits
 
 - The Wally package remains private and has not been published.
-- Package installation in a separate consumer place and the two-client multiplayer smoke test remain pending; the 61-module automated Studio suite passed.
+- Package installation in a separate consumer place and the two-client multiplayer smoke test remain pending. The 61-module Studio suite passed before the new public consumer test was added; run all 62 current modules in Studio for complete evidence.
 
 
 ## Infraestrutura de testes — runner sequencial
@@ -112,6 +112,8 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 - `CombatTestRunner.server.lua` executa os módulos em ordem alfabética, captura falhas, aplica timeout por teste e interrompe a suíte em caso de timeout.
 - O runner evita execução duplicada por sessão e executa apenas um módulo por nome quando o place contém cópias repetidas; o teste de rollback de colisão usa uma entidade distinta para a segunda hitbox.
 - O smoke multiplayer continua separado, pois depende de dois clientes conectados.
+- `CombatCustomDataConsumerTest.lua` exercita o consumidor de referência através somente do facade público, incluindo rollback/replay e gravação serializada.
+- A referência de SemVer de `API.md` foi alinhada ao pacote atual `0.1.4`; `Conventions.md` agora aponta para a política de compatibilidade documentada.
 
 ### Limites
 

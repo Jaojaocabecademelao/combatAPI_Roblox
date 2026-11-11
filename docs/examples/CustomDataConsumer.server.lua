@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CombatAPI = require(ReplicatedStorage.Shared.CombatAPI)
 
 local world = CombatAPI.CreateWorld()
+CombatAPI.Simulation.new(world, { Seed = 17 })
 local collisionWorld = CombatAPI.CollisionWorld.new(world)
 local attackCatalog = CombatAPI.AttackCatalog.new()
 

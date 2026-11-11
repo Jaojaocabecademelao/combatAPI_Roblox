@@ -27,6 +27,9 @@ de teste com dois clientes.
   versões de manifest/schema e uso público de `AttackCatalog`.
 - `CombatAPIPublicContractTest.lua`: verifica o registro de códigos estáveis,
   imutabilidade de `APIError`/`APIResult` e invariantes de sucesso/falha.
+- `CombatCustomDataConsumerTest.lua`: reproduz o fluxo do consumidor de referência
+  apenas com `CombatAPI`, cobrindo override por frames, rollback/replay,
+  fingerprint de catálogo e round-trip de `ReplayRecording`.
 - `examples/CustomDataConsumer.server.lua`: exemplo executável em um place de
   teste. Cria o World, catálogo, ataque, override derivado de frames, hitbox e
   snapshot/restore usando apenas exports públicos. Após restore, reacquire a

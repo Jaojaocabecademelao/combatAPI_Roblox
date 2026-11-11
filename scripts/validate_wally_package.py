@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "wally.toml"
 ENTRYPOINT = ROOT / "src" / "init.lua"
 API_MODULE = ROOT / "src" / "shared" / "CombatAPI.lua"
+API_DOC = ROOT / "docs" / "API.md"
 
 
 def main() -> None:
@@ -17,7 +18,7 @@ def main() -> None:
 
     required = {
         "name": "jaojaocabecademelao/combatapi",
-        "version": "0.1.4",
+        "version": "0.2.0",
         "license": "MIT",
         "realm": "shared",
         "registry": "https://github.com/UpliftGames/wally-index",
@@ -39,6 +40,11 @@ def main() -> None:
     semver = re.search(r'SemVer\s*=\s*"([^"]+)"', API_MODULE.read_text(encoding="utf-8"))
     if not semver or semver.group(1) != package["version"]:
         raise SystemExit("Wally package version must match CombatAPI.SemVer")
+    if not API_DOC.is_file():
+        raise SystemExit("Missing docs/API.md public API reference")
+    api_doc = API_DOC.read_text(encoding="utf-8")
+    if f"reports the package release version (`{package['version']}`)" not in api_doc:
+        raise SystemExit("docs/API.md package release version must match CombatAPI.SemVer")
 
     if not (ROOT / "src" / "server").is_dir():
         raise SystemExit("Expected server test/source tree is missing")

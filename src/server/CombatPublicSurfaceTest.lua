@@ -8,6 +8,8 @@ end
 
 check(CombatAPI.Version == 1, "legacy numeric API version changed")
 check(type(CombatAPI.SemVer) == "string", "SemVer release field is missing")
+check(type(CombatAPI.Simulation) == "table" and type(CombatAPI.Simulation.new) == "function",
+	"Simulation constructor is not public")
 check(type(CombatAPI.Attack) == "table" and type(CombatAPI.Attack.new) == "function", "Attack constructor is not public")
 check(type(CombatAPI.AttackInstance) == "table" and type(CombatAPI.AttackInstance.new) == "function", "AttackInstance constructor is not public")
 check(type(CombatAPI.AttackCatalog) == "table" and type(CombatAPI.AttackCatalog.new) == "function", "AttackCatalog constructor is not public")
@@ -19,6 +21,11 @@ local typeContracts = require(ReplicatedStorage.Shared.CombatAPITypes)
 check(type(typeContracts) == "table", "type contract module cannot be required")
 check(CombatAPI.Contracts.AttackCatalogManifest == 2, "attack manifest contract version is incorrect")
 check(CombatAPI.Contracts.CombatStateSchema == 3, "combat state schema contract version is incorrect")
+local simulationWorld = CombatAPI.CreateWorld()
+local simulation = CombatAPI.Simulation.new(simulationWorld, { Seed = 17 })
+check(simulationWorld:GetSimulation() == simulation,
+	"Public Simulation constructor must associate itself with the supplied World")
+simulationWorld:Destroy()
 
 local attack = CombatAPI.Attack.new({
     Id = "public-surface-test",

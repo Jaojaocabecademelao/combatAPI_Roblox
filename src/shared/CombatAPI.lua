@@ -1,4 +1,5 @@
 local World = require(script.Parent.Core.World)
+local Simulation = require(script.Parent.Simulation.Simulation)
 local APIContext = require(script.Parent.Events.APIContext)
 local EventTypes = require(script.Parent.Events.EventTypes)
 local APIResult = require(script.Parent.Events.APIResult)
@@ -34,7 +35,7 @@ local CombatAPI = {
 	-- Version is retained as the numeric API generation for existing consumers.
 	Version = 1,
 	-- SemVer describes the package/API release independently from serialized contracts.
-	SemVer = "0.1.4",
+	SemVer = "0.2.0",
 	Contracts = table.freeze({
 		NetworkMessage = NetworkMessage.Version,
 		CombatActionDefinition = CombatActionDefinition.Version,
@@ -95,6 +96,7 @@ function CombatAPI.DisablePlugin(world,id)
 	return wrapPluginResult(result, world)
 end
 CombatAPI.APIContext = APIContext
+CombatAPI.Simulation = Simulation
 CombatAPI.EventTypes = EventTypes
 CombatAPI.APIResult = APIResult
 CombatAPI.APIError = APIError

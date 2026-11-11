@@ -1,6 +1,6 @@
 # Public API boundary
 
-This document defines the compatibility boundary for the CombatAPI `0.1.x` development line.
+This document defines the compatibility boundary for the CombatAPI `0.2.x` development line.
 
 ## Stable public surface
 
@@ -9,10 +9,10 @@ The following entry points are public and covered by the package's compatibility
 - `CombatAPI.CreateWorld`, `GetContext`, `GetAPIContext`, and `IsWorld`.
 - `CombatAPI.APIContext` methods documented in `API.md`, including entity operations, events, feature discovery, and named system lookup.
 - `CombatAPI.APIResult`, `APIError`, `EventTypes`, plugin contracts, action definitions/catalogs, replay recordings, and the exported constructors listed below.
-- `CombatAPI.Attack`, `AttackInstance`, `AttackCatalog`, `CollisionWorld`, `Hitbox`, `Hurtbox`, and `OffensiveProperties`.
+- `CombatAPI.Simulation`, `Attack`, `AttackInstance`, `AttackCatalog`, `CollisionWorld`, `Hitbox`, `Hurtbox`, and `OffensiveProperties`.
 - World methods explicitly listed in the World accessors section of `API.md`.
 
-The public constructor exports are provided so a consumer can build an attack definition, create per-execution overrides, register collision regions, and capture/restore combat state without requiring modules from `src/shared/Combat` directly.
+The public constructor exports are provided so a consumer can create a World and Simulation, build an attack definition, create per-execution overrides, register collision regions, and capture/restore combat state without requiring modules from `src/shared/Combat` or `src/shared/Simulation` directly.
 
 ## Advanced resolver access
 
@@ -34,7 +34,7 @@ Modules under `src/shared/Core`, `src/shared/Combat`, `src/shared/Simulation`, `
 ## Versioning policy
 
 - `CombatAPI.Version` remains the integer API generation for compatibility with existing code.
-- `CombatAPI.SemVer` is the package release version. The current development baseline is `0.1.4`.
+- `CombatAPI.SemVer` is the package release version. The current development baseline is `0.2.0`.
 - **MAJOR**: remove/rename a public member, change its meaning incompatibly, or change a serialized contract without a compatible migration.
 - **MINOR**: add a backward-compatible public member, capability, or optional field.
 - **PATCH**: backward-compatible bug fixes and documentation corrections.

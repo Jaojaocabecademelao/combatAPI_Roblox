@@ -74,8 +74,8 @@ atributos e ambiente.
 
 | Etapa | Estado | Evidência / pendência |
 |---|---|---|
-| A — Consumidor de referência | Parcial, exemplo preparado | `docs/examples/CustomDataConsumer.server.lua` usa exports públicos para definir ataque, override, catálogo, hitbox e snapshot/restore. Precisa ser executado em Studio; lacunas encontradas devem ser registradas antes de declarar aceite. |
-| B — Contrato estável | Parcial, contrato documentado | `docs/PUBLIC_API.md`, `CombatAPI.SemVer`, `CombatAPITypes`, exports públicos e `CombatPublicSurfaceTest` adicionados. Tipagem estrita completa (`--!strict` em toda a superfície), política pós-1.0.0 validada e mapeamento específico de todos os códigos de erro ainda não estão concluídos. |
+| A — Consumidor de referência | Implementado; teste de runtime pendente | `docs/examples/CustomDataConsumer.server.lua` e `CombatCustomDataConsumerTest.lua` usam somente o facade `CombatAPI` para simulação, ataque, override por frame, rollback/replay, fingerprint do catálogo e gravação. O teste de Studio identificou a ausência de Simulation pública; o construtor agora está exportado e o teste atualizado precisa ser executado. |
+| B — Contrato estável | Parcial, contrato documentado | `docs/PUBLIC_API.md`, `CombatAPI.SemVer` 0.2.0, `CombatAPITypes`, exports públicos e `CombatPublicSurfaceTest` adicionados. A tipagem estrita completa (`--!strict` em toda a superfície), validação de política pós-1.0.0 e mapeamento específico de todos os códigos de erro ainda não estão concluídos. |
 | C — Infraestrutura | Runner executado com sucesso; pendências de ambiente | 61 módulos passaram após correção da colisão e do inventário. O runner deduplica módulos e bloqueia inicialização repetida. O place ainda contém cópias duplicadas; o smoke de dois clientes e a análise da origem dessas duplicatas seguem pendentes. |
 
 A prioridade da Etapa D permanece pendente (decisão D8). As Etapas A e B continuam pré-requisitos antes de iniciar novas capacidades.
