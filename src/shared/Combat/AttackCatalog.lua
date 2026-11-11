@@ -4,6 +4,7 @@ local Serializer = require(script.Parent.Parent.Simulation.StateSerializer)
 -- policy, or callback behavior changes. Functions/closures are deliberately not serialized.
 local AttackCatalog = {}
 AttackCatalog.__index = AttackCatalog
+AttackCatalog.ManifestVersion = 2
 
 local function validId(id)
 	return (type(id) == "string" and id ~= "")
@@ -107,11 +108,11 @@ function AttackCatalog:CaptureManifest()
 		})
 	end
 	table.sort(entries, function(a, b) return idLess(a.Id, b.Id) end)
-	return { Version = 2, Entries = entries }
+	return { Version = AttackCatalog.ManifestVersion, Entries = entries }
 end
 
 function AttackCatalog:ValidateManifest(manifest)
-	if type(manifest) ~= "table" or getmetatable(manifest) ~= nil or (manifest.Version ~= 1 and manifest.Version ~= 2)
+	if type(manifest) ~= "table" or getmetatable(manifest) ~= nil or (manifest.Version ~= 1 and manifest.Version ~= AttackCatalog.ManifestVersion)
 		or not isDenseArray(manifest.Entries) then
 		return false, "Invalid AttackCatalog manifest or non-dense entries"
 	end
@@ -138,7 +139,7 @@ function AttackCatalog:ValidateManifest(manifest)
 			or not sameDamage(damageManifest(properties.Damage), entry.Damage)
 			or properties.Hitstun ~= entry.Hitstun
 			or (attack.CanHit ~= nil) ~= entry.HasCanHitCallback
-				or (manifest.Version == 2 and entry.CustomDataCanonical ~= self.CustomDataCanonical[entry.Id]) then
+				or (manifest.Version == AttackCatalog.ManifestVersion and entry.CustomDataCanonical ~= self.CustomDataCanonical[entry.Id]) then
 			return false, "Attack definition manifest mismatch for " .. tostring(entry.Id)
 		end
 	end

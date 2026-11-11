@@ -19,3 +19,86 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 - Manifest do `AttackCatalog` passa da versão 1 para 2. Manifest v1 permanece aceito somente quando as definições atuais não usam `CustomData`.
 - Hashes/snapshots sem overrides mantêm o campo de override omitido.
 - A cobertura inclui testes focados de validação/merge, manifest v2, migração de schema, rollback in-place e comparação de replay/hash com overrides derivados de frames. A execução da suíte completa e do benchmark em runtime Roblox/Studio não foi realizada neste ambiente; esta entrada não afirma validação de ponta a ponta.
+
+
+## CombatAPI 0.1.0 — superfície pública e infraestrutura (2026-11-11)
+
+### Adicionado
+
+- Exports públicos para `Attack`, `AttackInstance`, `AttackCatalog`, `CollisionWorld`, `Hitbox`, `Hurtbox` e `OffensiveProperties`, permitindo consumir o fluxo de `CustomData` sem exigir `require` direto de módulos internos.
+- `CombatAPI.SemVer` e versões declaradas de `AttackCatalogManifest` e `CombatStateSchema` em `CombatAPI.Contracts`, mantendo `CombatAPI.Version` numérico por compatibilidade.
+- Módulo de tipos Luau `CombatAPITypes` para `CustomData`, opções de ataque, `APIResult`, `APIError` e World.
+- Exemplo de consumidor público em `docs/examples/CustomDataConsumer.server.lua` e teste de superfície pública.
+- Política de fronteira pública, SemVer e depreciação em `docs/PUBLIC_API.md`; guia de contribuição e workflow de build Rojo no GitHub Actions.
+
+### Limites
+
+- O exemplo e o novo teste ainda precisam ser executados no Roblox Studio.
+- CI valida JSON e build Rojo; não executa scripts `*Test.server.lua` nem substitui testes de runtime.
+- Publicação Wally e análise estática Luau ficam adiadas até confirmar a estrutura de pacote e escolher/padronizar um linter/analisador.
+
+
+## 0.1.1 — Public contract hardening
+
+- Added strict Luau type exports for attacks, instances, offensive properties,
+  serializable custom data, API errors, API results, and World.
+- Added a stable `APIError.Code` union and `APIError.isCode`.
+- Hardened `APIError.new` argument validation and froze the code registry and
+  error records.
+- Added `APIResult.is` and enforced the success/error invariant.
+- Added `CombatAPIPublicContractTest.server.lua`.
+
+
+## 0.1.2 — CI validation tooling (2026-11-11)
+
+### Added
+
+- Pinned `luau-lsp` in Aftman and introduced advisory analysis for the strict
+  public-contract modules.
+- GitHub Actions now uploads the Rojo-built place as a seven-day artifact for
+  manual Roblox Studio validation.
+
+### Notes
+
+- Luau analysis remains advisory until its diagnostics are reviewed and a
+  stable baseline is established. The workflow does not execute Roblox runtime
+  tests and does not claim that the Studio suite passed.
+
+
+## 0.1.3 — Test evidence and diagnostics (2026-11-11)
+
+### Added
+
+- Added `scripts/create_test_report.py`, which creates a Studio execution report
+  containing every current `*Test.server.lua` script and benchmark fields.
+- The Studio validation artifact now includes the generated report template.
+- The Luau analysis job preserves its full output and exit code as a separate
+  artifact instead of discarding advisory diagnostics.
+
+### Changed
+
+- Removed the manually downloaded global type definitions from the analysis job;
+  `luau-lsp` provides Roblox definitions for Rojo projects by default.
+- Bumped the package development baseline to `0.1.3`.
+
+### Limits
+
+- CI still does not execute Roblox runtime tests. The report is a blank evidence
+  template, not proof that any test passed.
+- Luau analysis remains advisory until its output is reviewed and a baseline is
+  established.
+
+
+## 0.1.4 — Wally package preview (2026-11-11)
+
+### Added
+
+- Added a Wally manifest and package entrypoint exposing the existing public facade.
+- Restricted the shared package preview to `/src/init.lua` and `/src/shared/**`, excluding server tests.
+- Added a manifest/entrypoint consistency check and a CI package-preview artifact.
+
+### Limits
+
+- The Wally package remains private and has not been published.
+- A central runtime test runner remains pending; the current suite consists of independent Roblox server Scripts.
+- Package installation in a separate consumer place and Roblox Studio runtime validation remain pending.

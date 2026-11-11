@@ -10,6 +10,19 @@ asserções terminam sem erro.
 A suíte cobre módulos isolados e integrações entre World, Simulation, combate,
 colisão, eventos, rollback, determinismo e replay. `CombatDocumentationTest`
 também verifica se o inventário documentado corresponde aos scripts presentes.
+O script `scripts/validate_test_inventory.py` faz a mesma checagem sem Roblox e é
+executado pela CI antes do build Rojo.
+
+## Superfície pública e consumidor de referência
+
+- `CombatPublicSurfaceTest.server.lua`: verifica exports públicos, versão SemVer,
+  versões de manifest/schema e uso público de `AttackCatalog`.
+- `CombatAPIPublicContractTest.server.lua`: verifica o registro de códigos estáveis,
+  imutabilidade de `APIError`/`APIResult` e invariantes de sucesso/falha.
+- `examples/CustomDataConsumer.server.lua`: exemplo executável em um place de
+  teste. Cria o World, catálogo, ataque, override derivado de frames, hitbox e
+  snapshot/restore usando apenas exports públicos. Após restore, reacquire a
+  entidade pelo ID, pois referências anteriores podem ficar obsoletas.
 
 ## Cobertura de `CustomData`
 
@@ -45,4 +58,58 @@ ambiente e com a mesma quantidade de instâncias; este repositório não registr
 números medidos neste ambiente de edição.
 
 
-O andamento por fase e as validações ainda pendentes estão registrados em [IMPLEMENTATION_STATUS](IMPLEMENTATION_STATUS.md).
+O inventário documentado inclui `CombatPublicSurfaceTest.server.lua`.
+
+O andamento por fase e as validações ainda pendentes estão registrados em
+[IMPLEMENTATION_STATUS](IMPLEMENTATION_STATUS.md).
+
+
+## Validação automatizada no GitHub Actions
+
+O workflow `Validate CombatAPI` executa validação do JSON, consistência do
+inventário, build Rojo e publica o `.rbxlx` como artefato por sete dias para
+abrir no Roblox Studio. O artefato é um place de validação, não um resultado de
+testes aprovados.
+
+Há também uma análise Luau inicial dos três módulos de contrato marcados com
+`--!strict`. Ela é temporariamente consultiva (`continue-on-error`) enquanto o
+projeto estabelece e revisa uma linha de base de diagnósticos. As definições
+globais Roblox são baixadas do repositório `luau-lsp`; portanto, essa etapa não substitui a análise integrada do Roblox Studio nem a execução dos scripts de
+teste.
+
+
+## Registro reproduzível da execução
+
+Gere um modelo com uma linha para cada script atualmente inventariado:
+
+```sh
+python3 scripts/create_test_report.py --output combatapi-studio-test-report.md
+```
+
+Abra o place de validação no Roblox Studio e inicie uma sessão de teste. Os
+Scripts `*Test.server.lua` estão montados em `ServerScriptService.Server` e
+executam como scripts independentes. Registre no modelo o resultado observado
+de cada um, a versão do Studio, o commit e eventuais erros do Output. Não marque
+um teste como aprovado apenas porque o place abriu ou foi compilado pelo Rojo.
+
+A CI anexa o modelo ao artefato `combatapi-studio-validation-place`. A análise
+Luau consultiva também publica o log completo e o código de saída em
+`combatapi-luau-analysis`; um diagnóstico do analisador não é um teste de runtime.
+
+
+## Pacote Wally (prévia privada)
+
+O repositório inclui um manifesto Wally para preparar a distribuição da superfície compartilhada. `src/init.lua` é o entrypoint do pacote e retorna o mesmo facade público de `CombatAPI`. A inclusão está limitada a `/src/init.lua` e `/src/shared/**`; scripts de teste e implementação exclusiva do servidor não devem ser distribuídos nesse pacote compartilhado.
+
+Validar localmente:
+
+```sh
+python3 scripts/validate_wally_package.py
+wally package --output combatapi-wally-package.zip
+```
+
+O manifesto permanece `private = true`. Não publique até confirmar a disponibilidade/posse do escopo Wally, concluir os critérios de contrato público e executar a validação de runtime num place consumidor.
+
+## Limite do runner central
+
+A suíte atual é composta por Scripts Roblox independentes. Eles já iniciam automaticamente no servidor e vários testes configuram eventos/estado próprios. Não existe ainda um protocolo comum de descoberta, execução, timeout e resultado estruturado. Por isso, o relatório atual é manual e o build CI não é apresentado como execução da suíte. A centralização exige migrar os casos para módulos de teste com uma interface comum (ou adotar um framework e adaptar cada caso), preservando explicitamente os testes de integração que dependem do ciclo de vida do servidor.

@@ -1,0 +1,15 @@
+[package]
+name = "jaojaocabecademelao/combatapi"
+description = "Modular Roblox combat framework with deterministic simulation, rollback, replay, and a public API."
+version = "0.1.4"
+license = "MIT"
+authors = ["Jaojaocabecademelao"]
+realm = "shared"
+registry = "https://github.com/UpliftGames/wally-index"
+repository = "https://github.com/Jaojaocabecademelao/combatAPI_Roblox"
+# Staging only: enable public publishing after confirming the Wally scope is
+# registered to the repository owner and the public API/runtime gates pass.
+private = true
+include = ["/src/init.lua", "/src/shared/**"]
+
+[dependencies]

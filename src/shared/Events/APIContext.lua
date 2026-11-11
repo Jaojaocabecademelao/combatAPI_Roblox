@@ -4,6 +4,14 @@ local EventBus = require(script.Parent.EventBus)
 
 local APIContext = {}
 APIContext.__index = APIContext
+
+local function wrapResolverResult(result, system, frame)
+	local err = nil
+	if not result.Success then
+		err = APIError.new(APIError.Code.InvalidOperation, tostring(result.Code), system, frame, { ResolverCode = tostring(result.Code) })
+	end
+	return APIResult.new(result.Success, result, err)
+end
 local systemMethods = {
 	Simulation = "GetSimulation",
 	Input = "GetInputResolver", Collision = "GetCollisionWorld", Damage = "GetDamageResolver",
@@ -101,7 +109,7 @@ function APIContext:RegisterPlugin(plugin, implementation)
 	local resolver=self:GetPluginResolver()
 	if not resolver then return APIResult.new(false,nil,APIError.new(APIError.Code.Destroyed,"Plugin resolver is unavailable","Plugins")) end
 	local result=resolver:RegisterPlugin(plugin,implementation)
-	return APIResult.new(result.Success,result,result.Success and nil or APIError.new(APIError.Code.InvalidOperation,result.Code,"Plugins",self.World and self.World.CurrentFrame))
+	return wrapResolverResult(result, "Plugins", self.World and self.World.CurrentFrame)
 end
 function APIContext:GetPlugin(id)
 	local resolver=self:GetPluginResolver(); local plugin=resolver and resolver:GetPlugin(id)
@@ -111,27 +119,27 @@ end
 function APIContext:StartPlugin(id)
 	local resolver=self:GetPluginResolver(); if not resolver then return APIResult.new(false,nil,APIError.new(APIError.Code.Destroyed,"Plugin resolver is unavailable","Plugins")) end
 	local result=resolver:StartPlugin(id)
-	return APIResult.new(result.Success,result,result.Success and nil or APIError.new(APIError.Code.InvalidOperation,result.Code,"Plugins",self.World and self.World.CurrentFrame))
+	return wrapResolverResult(result, "Plugins", self.World and self.World.CurrentFrame)
 end
 function APIContext:StopPlugin(id)
 	local resolver=self:GetPluginResolver(); if not resolver then return APIResult.new(false,nil,APIError.new(APIError.Code.Destroyed,"Plugin resolver is unavailable","Plugins")) end
 	local result=resolver:StopPlugin(id)
-	return APIResult.new(result.Success,result,result.Success and nil or APIError.new(APIError.Code.InvalidOperation,result.Code,"Plugins",self.World and self.World.CurrentFrame))
+	return wrapResolverResult(result, "Plugins", self.World and self.World.CurrentFrame)
 end
 function APIContext:UnregisterPlugin(id)
 	local resolver=self:GetPluginResolver(); if not resolver then return APIResult.new(false,nil,APIError.new(APIError.Code.Destroyed,"Plugin resolver is unavailable","Plugins")) end
 	local result=resolver:UnregisterPlugin(id)
-	return APIResult.new(result.Success,result,result.Success and nil or APIError.new(APIError.Code.InvalidOperation,result.Code,"Plugins",self.World and self.World.CurrentFrame))
+	return wrapResolverResult(result, "Plugins", self.World and self.World.CurrentFrame)
 end
 function APIContext:EnablePlugin(id)
 	local resolver=self:GetPluginResolver(); if not resolver then return APIResult.new(false,nil,APIError.new(APIError.Code.Destroyed,"Plugin resolver is unavailable","Plugins")) end
 	local result=resolver:EnablePlugin(id)
-	return APIResult.new(result.Success,result,result.Success and nil or APIError.new(APIError.Code.InvalidOperation,result.Code,"Plugins",self.World and self.World.CurrentFrame))
+	return wrapResolverResult(result, "Plugins", self.World and self.World.CurrentFrame)
 end
 function APIContext:DisablePlugin(id)
 	local resolver=self:GetPluginResolver(); if not resolver then return APIResult.new(false,nil,APIError.new(APIError.Code.Destroyed,"Plugin resolver is unavailable","Plugins")) end
 	local result=resolver:DisablePlugin(id)
-	return APIResult.new(result.Success,result,result.Success and nil or APIError.new(APIError.Code.InvalidOperation,result.Code,"Plugins",self.World and self.World.CurrentFrame))
+	return wrapResolverResult(result, "Plugins", self.World and self.World.CurrentFrame)
 end
 function APIContext:Destroy()
 	if self.Destroyed then return false end

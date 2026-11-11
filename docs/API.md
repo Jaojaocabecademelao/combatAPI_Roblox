@@ -4,9 +4,12 @@
 
 `src/shared/CombatAPI.lua` returns a frozen module table. Current methods and exported types:
 
-`CombatAPI.Version` is the public API version. `CombatAPI.Contracts` exposes
-the versions of versioned wire/action contracts (`NetworkMessage` and
-`CombatActionDefinition`) for compatibility checks.
+`CombatAPI.Version` remains the integer API generation (`1`) for existing
+consumers. `CombatAPI.SemVer` reports the package release version (`0.1.0`),
+while `CombatAPI.Contracts` exposes independently versioned serialized
+contracts, including the attack catalog manifest and combat state schema.
+See [PUBLIC_API.md](PUBLIC_API.md) for the compatibility boundary and
+versioning/deprecation policy.
 
 `world:GetCombatStateSchema()` includes the combat pipeline, hitstop, combo,
 juggle, and cancel resolver providers by default. Collision-derived resolvers
@@ -176,8 +179,14 @@ CombatAPI.UnregisterPlugin(world, id)
 
 The module exports `APIContext`, `EventTypes`, `APIResult`, `APIError`, `Plugin`,
 `PluginProfile`, `PluginState`, `CombatActionProfiles`, `CombatActionCatalog`,
-and `ReplayRecording`. The profiles expose definition-only `Melee()`,
-`Projectile()`, and `AreaOfEffect()` examples for the shared action pipeline.
+`ReplayRecording`, `Attack`, `AttackInstance`, `AttackCatalog`, `CollisionWorld`,
+`Hitbox`, `Hurtbox`, and `OffensiveProperties`. The profiles expose definition-only
+`Melee()`, `Projectile()`, and `AreaOfEffect()` examples for the shared action
+pipeline. `CombatAPITypes.lua` is a sibling type-only module; import its types
+with `type CombatTypes = require(ReplicatedStorage.Shared.CombatAPITypes)`.
+
+A complete consumer-side example using only exported constructors is available
+at [examples/CustomDataConsumer.server.lua](examples/CustomDataConsumer.server.lua).
 `CombatAPI.Contracts` reports the versions of the network message, action
 definition, action catalog manifest, and replay recording formats.
 

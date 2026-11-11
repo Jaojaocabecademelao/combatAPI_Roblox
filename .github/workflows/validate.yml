@@ -1,0 +1,73 @@
+name: Validate CombatAPI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Static validation and Rojo build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Aftman
+        uses: ok-nick/setup-aftman@v0.4.2
+      - name: Install pinned tools
+        run: aftman install
+      - name: Validate project JSON
+        run: python3 -m json.tool default.project.json > /dev/null
+      - name: Validate documented test inventory
+        run: python3 scripts/validate_test_inventory.py
+      - name: Validate Wally package manifest and entrypoint
+        run: python3 scripts/validate_wally_package.py
+      - name: Build Wally package preview
+        run: wally package --output combatapi-wally-package.zip
+      - name: Build Roblox place
+        run: rojo build default.project.json -o combatapi-validation.rbxlx
+      - name: Generate Studio test report template
+        run: python3 scripts/create_test_report.py --output combatapi-studio-test-report.md
+      - name: Upload Studio test place
+        uses: actions/upload-artifact@v4
+        with:
+          name: combatapi-studio-validation-place
+          path: |
+            combatapi-validation.rbxlx
+            combatapi-studio-test-report.md
+            combatapi-wally-package.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  luau-analysis:
+    name: Luau analysis (advisory baseline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Aftman
+        uses: ok-nick/setup-aftman@v0.4.2
+      - name: Install pinned tools
+        run: aftman install
+      - name: Generate Rojo sourcemap
+        run: rojo sourcemap default.project.json --output sourcemap.json
+      - name: Analyze strict public-contract modules
+        # Keep this advisory, but preserve the full diagnostics as an artifact.
+        run: |
+          set +e
+          luau-lsp analyze --sourcemap=sourcemap.json \
+            src/shared/CombatAPITypes.lua \
+            src/shared/Events/APIError.lua \
+            src/shared/Events/APIResult.lua > luau-analysis.log 2>&1
+          status=$?
+          printf "\nAnalyzer exit code: %s\n" "$status" >> luau-analysis.log
+          cat luau-analysis.log
+          exit 0
+      - name: Upload Luau diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: combatapi-luau-analysis
+          path: luau-analysis.log
+          if-no-files-found: warn
+          retention-days: 14
