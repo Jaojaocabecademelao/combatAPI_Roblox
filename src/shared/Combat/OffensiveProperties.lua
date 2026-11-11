@@ -110,6 +110,8 @@ end
 
 function OffensiveProperties.WithCustomData(properties, customData)
 	assert(type(properties) == "table", "WithCustomData expects OffensiveProperties")
+	assert(customData == nil or (type(customData) == "table" and table.isfrozen(customData)),
+		"WithCustomData expects nil or frozen CustomData table")
 	local derived = table.clone(properties)
 	derived.CustomData = customData
 	return table.freeze(derived)

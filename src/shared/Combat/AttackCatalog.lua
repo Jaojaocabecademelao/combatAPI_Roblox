@@ -56,11 +56,18 @@ function AttackCatalog:Register(attack, version)
 	assert(validVersion(version), "Attack definition version must be a non-empty string or non-negative integer")
 	assert(not self.Definitions[attack.Id], "Attack definition ID already registered: " .. tostring(attack.Id))
 	assert(type(attack.CanHit) == "function" or attack.CanHit == nil, "Attack CanHit must be a function or nil")
+	local customData = attack.OffensiveProperties and attack.OffensiveProperties.CustomData
+	local customDataCanonical
+	if customData ~= nil then
+		assert(type(customData) == "table" and getmetatable(customData) == nil,
+			"AttackCatalog CustomData must be a plain serializable table")
+		local ok, clone = pcall(Serializer.CloneSerializable, customData, { MaxEntries = 256, MaxDepth = 8 })
+		assert(ok, "AttackCatalog CustomData is invalid: " .. tostring(clone))
+		customDataCanonical = Serializer.Serialize(clone, { MaxEntries = 256, MaxDepth = 8 })
+	end
 	self.Definitions[attack.Id] = attack
 	self.Versions[attack.Id] = version
-	if attack.OffensiveProperties and attack.OffensiveProperties.CustomData ~= nil then
-		self.CustomDataCanonical[attack.Id] = Serializer.Serialize(attack.OffensiveProperties.CustomData, { MaxEntries = 256, MaxDepth = 8 })
-	end
+	self.CustomDataCanonical[attack.Id] = customDataCanonical
 	return attack
 end
 
@@ -96,7 +103,7 @@ function AttackCatalog:CaptureManifest()
 			Damage = damageManifest(properties.Damage),
 			Hitstun = properties.Hitstun,
 			HasCanHitCallback = attack.CanHit ~= nil,
-				CustomDataCanonical = self.CustomDataCanonical[id],
+			CustomDataCanonical = self.CustomDataCanonical[id],
 		})
 	end
 	table.sort(entries, function(a, b) return idLess(a.Id, b.Id) end)

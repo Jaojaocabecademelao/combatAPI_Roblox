@@ -13,7 +13,10 @@ local world = World.new()
 local collision = CollisionWorld.new(world)
 local attacker, target = world:CreateEntity(), world:CreateEntity()
 local attackCatalog = AttackCatalog.new()
-local definition = Attack.new({ Id = "topology-test.attack", Damage = 4, Hitstun = 6 })
+local definition = Attack.new({
+	Id = "topology-test.attack", Damage = 4, Hitstun = 6,
+	CustomData = { Radius = 2, Style = "base" },
+})
 attackCatalog:Register(definition, 1)
 attackCatalog:Seal()
 collision:SetAttackCatalog(attackCatalog)
@@ -35,11 +38,15 @@ local hitbox = Hitbox.new({ Id = 5001, Owner = attacker, Shape = "Box", Size = V
 local hurtbox = Hurtbox.new({ Id = 5002, Owner = target, Shape = "Box", Size = Vector3.new(2,2,2),
  TopologyDefinitionId = "test.hurtbox", TopologyDefinitionVersion = 1 })
 collision:RegisterHitbox(hitbox); collision:RegisterHurtbox(hurtbox)
-local instance = AttackInstance.new(definition, attacker, world.IdGenerator)
+local instance = AttackInstance.new(definition, attacker, world.IdGenerator, {
+	CustomDataOverrides = { Radius = 7 },
+})
 instance:Activate(); instance:AddHitbox(hitbox)
 collision:Step(1/60, 1, 1/60)
 local snapshot = collision:CaptureRollbackState()
 assert(snapshot.Hitboxes[1].TopologyDefinitionId == "test.hitbox", "Hitbox topology definition was not captured")
+assert(snapshot.AttackInstances[1].CustomDataOverrides.Radius == 7,
+	"Topology snapshot must capture the attack instance override")
 
 collision:RemoveHitbox(hitbox)
 collision:RemoveHurtbox(hurtbox)
@@ -51,6 +58,10 @@ commit()
 assert(collision.Hitboxes[5001] and collision.Hurtboxes[5002], "Missing regions were not reconstructed")
 local restored = collision.Hitboxes[5001].AttackInstance
 assert(restored and restored.Id == snapshot.AttackInstances[1].Id and restored.State == "Active", "AttackInstance was not reconstructed")
+assert(restored.CustomDataOverrides.Radius == 7
+	and restored.OffensiveProperties.CustomData.Radius == 7
+	and restored.OffensiveProperties.CustomData.Style == "base",
+	"Topology reconstruction must restore the exact effective CustomData")
 assert(collision.Hitboxes[5001] ~= hitbox and collision.Hurtboxes[5002] ~= hurtbox, "Reconstruction should create fresh region objects")
 assert(collision.Frame == snapshot.Frame and #collision:GetResults() == 0, "Frame/output buffers were not restored safely")
 
@@ -60,5 +71,12 @@ bad.Hitboxes[1] = table.clone(snapshot.Hitboxes[1])
 bad.Hitboxes[1].TopologyDefinitionVersion = 99
 local badCommit = collision:PrepareTopologyRebuild(bad)
 assert(badCommit == nil, "Mismatched topology version must be rejected")
+local badOverride = table.clone(snapshot)
+badOverride.AttackInstances = table.clone(snapshot.AttackInstances)
+badOverride.AttackInstances[1] = table.clone(snapshot.AttackInstances[1])
+badOverride.AttackInstances[1].CustomDataOverrides = { Invalid = function() end }
+local badOverrideCommit, badOverrideError = collision:PrepareTopologyRebuild(badOverride)
+assert(badOverrideCommit == nil and string.find(tostring(badOverrideError), "CustomDataOverrides", 1, true),
+	"Topology reconstruction must reject invalid overrides before committing")
 world:Destroy()
 print("CombatTopologyRebuildRollbackTest: PASS")

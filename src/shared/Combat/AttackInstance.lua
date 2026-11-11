@@ -43,7 +43,7 @@ function AttackInstance.new(attack, ownerEntity, idGenerator, options)
 			Defense = attack.Defense,
 			Priority = attack.Priority,
 			CanClash = attack.CanClash,
-				CustomData = attack.CustomData,
+			CustomData = attack.CustomData,
 		})
 	end
 

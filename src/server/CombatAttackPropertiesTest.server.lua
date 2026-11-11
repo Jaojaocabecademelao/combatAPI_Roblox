@@ -44,9 +44,14 @@ local function createImpact(options)
 		Hitstun = options.Hitstun,
 		Defense = options.Defense,
 		Priority = options.Priority,
+		CustomData = options.CustomData,
 	})
 	local instance = AttackInstance.new(attack, attacker):Activate()
-	local hitbox = Hitbox.new({ Shape = "Sphere", Radius = 1 })
+	local hitbox = Hitbox.new({
+		Shape = "Sphere", Radius = 1,
+		Damage = options.HitboxDamage,
+		Hitstun = options.HitboxHitstun,
+	})
 	instance:AddHitbox(hitbox)
 	attacker:AddComponent(hitbox)
 	simulation:Step()
@@ -156,6 +161,15 @@ assert(not pcall(function()
 end), "An existing definition snapshot must not be mutable")
 
 -- Default Blockable + normal damage runs through HitEvent, defense, damage, health, and reactions.
+local fallbackCustomData = createImpact({
+	HitboxDamage = 6,
+	CustomData = { HitboxFallback = true, Radius = 3 },
+})
+assert(fallbackCustomData.HitEvent.OffensiveProperties.CustomData.HitboxFallback == true
+	and fallbackCustomData.HitEvent.OffensiveProperties.CustomData.Radius == 3
+	and fallbackCustomData.DamageEvents[1].OffensiveProperties.CustomData.Radius == 3,
+	"Hitbox property fallback must preserve attack CustomData through HitEvent and DamageEvent")
+
 local normal = createImpact({ Damage = 10, Hitstun = 3 })
 assert(normal.HitEvent.OffensiveProperties == normal.Instance.OffensiveProperties
 	and normal.HitEvent.OffensiveProperties.Damage.Amount == 10

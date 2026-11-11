@@ -259,7 +259,10 @@ local target = integrationWorld:CreateEntity()
 target:AddComponent(HealthComponent.new({ MaxHealth = 50 }))
 target:AddComponent(Hurtbox.new({ Shape = "Sphere", Radius = 1, Position = Vector3.new(0, 0, 0) }))
 local hitbox = Hitbox.new({ Shape = "Sphere", Radius = 1, Position = Vector3.new(0, 0, 0) })
-local attack = Attack.new({ Id = "PublicEventProbe", Damage = Damage.new({ Amount = 7 }) })
+local attack = Attack.new({
+	Id = "PublicEventProbe", Damage = Damage.new({ Amount = 7 }),
+	CustomData = { Id = "opaque-custom-id", Radius = 4 },
+})
 local attackInstance = AttackInstance.new(attack, attacker):Activate()
 attackInstance:AddHitbox(hitbox)
 attacker:AddComponent(hitbox)
@@ -274,6 +277,15 @@ check(facts[1].SimulationFrame == simulation:GetGameTime():GetFrame()
 check(facts[1].Payload.AttackerId == attacker.Id and facts[1].Payload.DefenderId == target.Id)
 check(facts[2].Payload.AttackerId == attacker.Id and facts[2].Payload.DefenderId == target.Id)
 check(facts[2].Payload.Amount == 7 and facts[2].SourceSystem == "Damage")
+check(facts[1].Payload.CustomData.Id == "opaque-custom-id"
+	and facts[1].Payload.CustomData.Radius == 4
+	and facts[2].Payload.CustomData.Id == "opaque-custom-id",
+	"Public hit and damage events must preserve opaque CustomData keys, including Id")
+check(facts[1].Payload.CustomData == attack.CustomData
+	and facts[2].Payload.CustomData == attack.CustomData,
+	"Public events must share the recursively frozen CustomData reference")
+check(table.isfrozen(facts[1].Payload.CustomData),
+	"Public event CustomData must remain immutable")
 check(integrationWorld:GetDamageEvents()[1].AppliedAmount == facts[2].Payload.Amount)
 local beforeRepeat = #facts
 integrationWorld:FlushEvents()

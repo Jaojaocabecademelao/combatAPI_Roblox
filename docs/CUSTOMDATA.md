@@ -16,12 +16,12 @@ O dado é opaco: a API não interpreta seus campos. Código de gameplay deve ace
 
 ## Hit, eventos e rollback
 
-`HitProcessor` preserva `CustomData` inclusive quando completa propriedades ausentes usando os dados da hitbox. Os eventos públicos `HitConfirmed` e `DamageApplied` publicam `CustomData` a partir das propriedades ofensivas; o valor é a referência congelada e pode ser `nil`.
+`HitProcessor` preserva `CustomData` inclusive quando completa propriedades ausentes usando os dados da hitbox. Os eventos públicos `HitConfirmed` e `DamageApplied` publicam `CustomData` a partir das propriedades ofensivas; o valor é a referência congelada e pode ser `nil`. O envelope público preserva especificamente essa referência opaca (inclusive uma chave chamada `Id`), em vez de projetá-la como uma referência de entidade.
 
-Snapshots do `CollisionWorld` guardam somente `CustomDataOverrides`, omitindo a chave quando não há override. O catálogo incorpora a serialização canônica do `CustomData` das definições ao manifest v2; uma alteração é detectada na validação de rollback. Manifests v1 são aceitos apenas quando as definições atuais não têm `CustomData`. O schema de estado é v3 e migra snapshots v2 para v3; leitores anteriores devem rejeitar snapshots v3 em vez de ignorar overrides. Como em qualquer replay, os overrides devem ser reproduzidos a partir dos mesmos dados determinísticos.
+Snapshots do `CollisionWorld` guardam somente `CustomDataOverrides`, omitindo a chave quando não há override. Tanto a restauração in-place quanto a reconstrução de topologia reaplicam o override salvo; a validação rejeita dados inválidos antes de qualquer mutação do estado vivo. O catálogo incorpora a serialização canônica do `CustomData` das definições ao manifest v2; uma alteração é detectada na validação de rollback. Manifests v1 são aceitos apenas quando as definições atuais não têm `CustomData`. O schema de estado é v3 e migra snapshots v2 para v3; leitores anteriores devem rejeitar snapshots v3 em vez de ignorar overrides. Como em qualquer replay, os overrides devem ser reproduzidos a partir dos mesmos dados determinísticos.
 
 O fingerprint de conteúdo mantido pela aplicação que grava replay deve incluir o manifest do AttackCatalog, inclusive `CustomDataCanonical`.
 
 ## Compatibilidade e testes
 
-Chamadas legadas `AttackInstance.new(attack, owner, idGenerator)` e `AttackInstance.new(attack, owner, idGenerator, explicitId)` permanecem válidas. A cobertura específica está em `src/server/CombatAttackPropertiesTest.server.lua`; a execução depende do runtime Roblox/Studio.
+Chamadas legadas `AttackInstance.new(attack, owner, idGenerator)` e `AttackInstance.new(attack, owner, idGenerator, explicitId)` permanecem válidas. A cobertura específica está em `src/server/CombatAttackCustomDataTest.server.lua`, `CombatAttackPropertiesTest.server.lua`, `CombatAttackCatalogRollbackTest.server.lua` e `CombatCollisionRollbackTest.server.lua`; a execução depende do runtime Roblox/Studio.

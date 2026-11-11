@@ -118,6 +118,14 @@ local function isDenseArray(value)
 	return count == maxIndex
 end
 
+local CUSTOM_DATA_LIMITS = { MaxEntries = 256, MaxDepth = 8 }
+
+local function validateCustomDataOverrides(value)
+	if value == nil then return true end
+	if type(value) ~= "table" or getmetatable(value) ~= nil then return false end
+	return pcall(Serializer.CloneSerializable, value, CUSTOM_DATA_LIMITS)
+end
+
 function CollisionWorld.new(world)
 	local self = setmetatable({}, CollisionWorld)
 	self.World = nil
@@ -497,10 +505,8 @@ function CollisionWorld:ValidateRollbackState(state)
 	local attacksById = {}
 	for _, saved in ipairs(state.AttackInstances) do
 		if type(saved) ~= "table" or not validId(saved.Id) or attacksById[saved.Id] then return false, "Invalid/duplicate AttackInstance ID" end
-		if saved.CustomDataOverrides ~= nil then
-			local validOverrides = type(saved.CustomDataOverrides) == "table" and getmetatable(saved.CustomDataOverrides) == nil
-			local ok = validOverrides and pcall(Serializer.CloneSerializable, saved.CustomDataOverrides, { MaxEntries = 256, MaxDepth = 8 })
-			if not ok then return false, "Invalid CustomDataOverrides for AttackInstance " .. tostring(saved.Id) end
+		if not validateCustomDataOverrides(saved.CustomDataOverrides) then
+			return false, "Invalid CustomDataOverrides for AttackInstance " .. tostring(saved.Id)
 		end
 		if not isDenseArray(saved.HitboxIds) then return false, "Missing/non-dense AttackInstance hitbox IDs" end
 		attacksById[saved.Id] = saved
@@ -592,7 +598,22 @@ function CollisionWorld:PrepareRollbackRestore(state)
 	local attackCommits = {}
 	for _, saved in ipairs(state.AttackInstances) do
 		local instance = attackInstancesById[saved.Id]
-		table.insert(attackCommits, function() instance.State = saved.State end)
+		local restoredOk, restoredInstance = pcall(AttackInstance.new,
+			instance.Attack, instance.OwnerEntity, nil, {
+				Id = saved.Id,
+				CustomDataOverrides = saved.CustomDataOverrides,
+			})
+		if not restoredOk then
+			return nil, "Invalid AttackInstance CustomDataOverrides for " .. tostring(saved.Id)
+				.. ": " .. tostring(restoredInstance)
+		end
+		table.insert(attackCommits, function()
+			instance.State = saved.State
+			instance.OffensiveProperties = restoredInstance.OffensiveProperties
+			instance.CustomDataOverrides = restoredInstance.CustomDataOverrides
+			instance.Priority = restoredInstance.Priority
+			instance.CanClash = restoredInstance.CanClash
+		end)
 	end
 	local pairsStaged = {}
 	for _, pairState in ipairs(state.ActivePairs) do
@@ -756,13 +777,21 @@ function CollisionWorld:PrepareTopologyRebuild(state, entitiesByIdOverride)
   if type(saved) ~= "table" or stagedAttacksById[saved.Id] or not isDenseArray(saved.HitboxIds) then
    return nil, "Invalid or duplicate AttackInstance record"
   end
+  if not validateCustomDataOverrides(saved.CustomDataOverrides) then
+   return nil, "Invalid CustomDataOverrides for AttackInstance " .. tostring(saved.Id)
+  end
   if not self.AttackCatalog then return nil, "Rebuilding active attacks requires an AttackCatalog" end
   local definition, definitionError = self.AttackCatalog:Resolve(saved.AttackId, saved.DefinitionVersion)
   if not definition then return nil, "Attack definition rejected: " .. tostring(definitionError) end
   local owner = saved.OwnerEntityId ~= nil and entitiesById[saved.OwnerEntityId] or nil
   if saved.OwnerEntityId ~= nil and not owner then return nil, "Missing AttackInstance owner" end
   if saved.State ~= "Created" and saved.State ~= "Active" and saved.State ~= "Finished" then return nil, "Invalid AttackInstance state" end
-  local instance = AttackInstance.new(definition, owner, self.IdGenerator, { Id = saved.Id, CustomDataOverrides = saved.CustomDataOverrides })
+  local instanceOk, instance = pcall(AttackInstance.new, definition, owner, self.IdGenerator, {
+   Id = saved.Id, CustomDataOverrides = saved.CustomDataOverrides,
+  })
+  if not instanceOk then
+   return nil, "Could not rebuild AttackInstance " .. tostring(saved.Id) .. ": " .. tostring(instance)
+  end
   instance.State = saved.State
   stagedAttacksById[saved.Id] = instance; table.insert(stagedAttacks, instance)
  end

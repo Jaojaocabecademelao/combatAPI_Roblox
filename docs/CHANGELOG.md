@@ -9,7 +9,8 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 - `CustomData` opcional em `Attack` e `OffensiveProperties`, com cópia defensiva, validação de dados serializáveis, limite de 256 entradas/profundidade 8, normalização de tabela vazia para `nil` e congelamento recursivo.
 - `CustomDataOverrides` por `AttackInstance`, recebido como tabela de opções no quarto argumento; merge raso preserva a definição original. Chamadas legadas com ID escalar explícito continuam suportadas.
 - Propagação de `CustomData` no fallback de propriedades do hitbox e nos payloads públicos `HitConfirmed` e `DamageApplied`.
-- Captura/restauração de overrides nos snapshots de colisão e verificação do conteúdo das definições pelo manifest do catálogo.
+- Captura de overrides nos snapshots de colisão; restauração in-place reaplica o override salvo e a restauração por reconstrução cria a instância com o mesmo override.
+- Verificação do conteúdo das definições pelo manifest do catálogo.
 - Migração do `CombatStateSchema` v2 para v3; a nova versão evita que consumidores antigos ignorem silenciosamente overrides.
 - Contratos em [`API.md`](API.md), [`Rollback.md`](Rollback.md), [`Conventions.md`](Conventions.md) e [`CUSTOMDATA.md`](CUSTOMDATA.md).
 
@@ -17,4 +18,4 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 
 - Manifest do `AttackCatalog` passa da versão 1 para 2. Manifest v1 permanece aceito somente quando as definições atuais não usam `CustomData`.
 - Hashes/snapshots sem overrides mantêm o campo de override omitido.
-- A cobertura de código foi ampliada para validação básica, merge raso, manifest v2 e migração de schema. A execução da suíte completa e do benchmark em runtime Roblox/Studio não foi realizada neste ambiente; esta entrada não afirma validação de ponta a ponta.
+- A cobertura inclui testes focados de validação/merge, manifest v2, migração de schema e rollback in-place. A execução da suíte completa e do benchmark em runtime Roblox/Studio não foi realizada neste ambiente; esta entrada não afirma validação de ponta a ponta.

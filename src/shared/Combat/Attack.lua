@@ -46,7 +46,7 @@ function Attack.new(options)
 		CanParry = options.CanParry,
 		Priority = priority,
 		CanClash = options.CanClash,
-			CustomData = options.CustomData,
+		CustomData = options.CustomData,
 	})
 	local attack = setmetatable({
 		Id = id,

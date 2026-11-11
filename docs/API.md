@@ -197,7 +197,7 @@ local instance = AttackInstance.new(attack, owner, idGenerator, {
 
 O merge é raso: chaves do override substituem as da definição; tabelas aninhadas são substituídas integralmente. Sem override, `AttackInstance.OffensiveProperties` compartilha as propriedades congeladas do ataque. O argumento escalar legado do quarto parâmetro continua sendo o ID explícito. `CustomDataOverrides` aceita as mesmas regras de serialização e limites.
 
-`HitConfirmed` e `DamageApplied` incluem `CustomData` nas propriedades ofensivas do hit/dano. O valor é `nil` quando ausente e, quando presente, é a referência congelada. `HitProcessor` preserva o dado também ao completar propriedades com valores provenientes da hitbox. Veja [CUSTOMDATA](CUSTOMDATA.md) para o contrato completo de determinismo e compatibilidade.
+`HitConfirmed` e `DamageApplied` incluem `CustomData` nas propriedades ofensivas do hit/dano. O valor é `nil` quando ausente e, quando presente, é a referência congelada. `HitProcessor` preserva o dado também ao completar propriedades com valores provenientes da hitbox. O override é preservado tanto no rollback in-place quanto na reconstrução da topologia. Veja [CUSTOMDATA](CUSTOMDATA.md) para o contrato completo de determinismo e compatibilidade.
 
 ## World accessors
 

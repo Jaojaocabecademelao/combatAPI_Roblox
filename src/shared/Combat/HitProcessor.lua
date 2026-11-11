@@ -126,7 +126,7 @@ function HitProcessor:Process(collisionResults, frame, time)
 							Defense = attackProperties and attackProperties.Defense,
 							Priority = attackProperties and attackProperties.Priority or priority,
 							CanClash = canClash,
-				CustomData = attackProperties and attackProperties.CustomData,
+							CustomData = attackProperties and attackProperties.CustomData,
 						})
 					local event = HitEvent.new({
 						AttackInstance = instance,

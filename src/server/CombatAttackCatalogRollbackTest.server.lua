@@ -20,6 +20,22 @@ customCatalog:Register(customDefinition, 1)
 local customManifest = customCatalog:CaptureManifest()
 assert(customManifest.Version == 2 and customManifest.Entries[1].CustomDataCanonical ~= nil
 	and customCatalog:ValidateManifest(customManifest), "Manifest v2 should include canonical CustomData")
+local legacyEmptyManifest = table.clone(customCatalog:CaptureManifest())
+legacyEmptyManifest.Version = 1
+legacyEmptyManifest.Entries = table.clone(legacyEmptyManifest.Entries)
+legacyEmptyManifest.Entries[1] = table.clone(legacyEmptyManifest.Entries[1])
+legacyEmptyManifest.Entries[1].CustomDataCanonical = nil
+assert(not customCatalog:ValidateManifest(legacyEmptyManifest),
+	"Manifest v1 must be rejected when a live definition has CustomData")
+
+local noCustomCatalog = AttackCatalog.new()
+local noCustomDefinition = Attack.new({ Id = "legacy-no-custom.v1", Damage = 1 })
+noCustomCatalog:Register(noCustomDefinition, 1)
+local noCustomManifest = noCustomCatalog:CaptureManifest()
+noCustomManifest.Version = 1
+noCustomManifest.Entries[1].CustomDataCanonical = nil
+assert(noCustomCatalog:ValidateManifest(noCustomManifest),
+	"Manifest v1 should remain compatible when no definition uses CustomData")
 local changedCustomManifest = table.clone(customManifest)
 changedCustomManifest.Entries = table.clone(customManifest.Entries)
 changedCustomManifest.Entries[1] = table.clone(customManifest.Entries[1])

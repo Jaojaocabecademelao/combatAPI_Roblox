@@ -1,5 +1,20 @@
 local Event = {}
 Event.__index = Event
+
+local function isRecursivelyFrozen(value, seen)
+	if type(value) ~= "table" then return true end
+	if not table.isfrozen(value) then return false end
+	seen = seen or {}
+	if seen[value] then return true end
+	seen[value] = true
+	for key, nested in pairs(value) do
+		if not isRecursivelyFrozen(key, seen) or not isRecursivelyFrozen(nested, seen) then
+			return false
+		end
+	end
+	return true
+end
+
 local function project(value, seen)
 	local valueType = type(value)
 	if valueType ~= "table" then return value end
@@ -25,7 +40,15 @@ function Event.new(eventType, payload, context)
 	assert(type(payload) == "table", "Event Payload must be a table")
 	local safePayload = {}
 	for key, value in pairs(payload) do
-		if type(value) ~= "function" and key ~= "Callback" then safePayload[key] = project(value) end
+		if type(value) ~= "function" and key ~= "Callback" then
+			-- CustomData is an opaque API-owned value. Preserve its frozen reference
+			-- instead of projecting keys such as "Id" as entity references.
+			if key == "CustomData" and type(value) == "table" and isRecursivelyFrozen(value) then
+				safePayload[key] = value
+			else
+				safePayload[key] = project(value)
+			end
+		end
 	end
 	local frame = context and (context.SimulationFrame or context.Frame) or safePayload.Frame
 	local event = {
