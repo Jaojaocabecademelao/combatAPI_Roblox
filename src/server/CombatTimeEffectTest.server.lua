@@ -1,0 +1,251 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Core, Combat = Shared:WaitForChild("Core"), Shared:WaitForChild("Combat")
+local Component = require(Core.Component)
+local EntityState = require(Core.EntityState)
+local World = require(Core.World)
+local Simulation = require(Shared.Simulation.Simulation)
+local HealthComponent = require(Combat.HealthComponent)
+local HitstopComponent = require(Combat.HitstopComponent)
+local HitstopRequest = require(Combat.HitstopRequest)
+local HitstopResolver = require(Combat.HitstopResolver)
+local Hitstun = require(Combat.Hitstun)
+local MotionComponent = require(Combat.MotionComponent)
+local StatusContainer = require(Combat.StatusContainer)
+local TimeEffectResult = require(Combat.TimeEffectResult)
+
+local passed = 0
+local function check(condition, message)
+	assert(condition, message or ("Time effect assertion " .. tostring(passed + 1) .. " failed"))
+	passed += 1
+end
+
+local Probe = setmetatable({}, Component)
+Probe.__index = Probe
+function Probe.new()
+	local self = setmetatable(Component.new(), Probe)
+	self.StepCount = 0
+	self.UpdateCount = 0
+	self.FrozenDuringStep = {}
+	self.LocalDeltaTimes = {}
+	return self
+end
+function Probe:Step(deltaTime)
+	self.StepCount += 1
+	local hitstop = self.Entity:GetComponent(HitstopComponent)
+	table.insert(self.FrozenDuringStep, hitstop and hitstop:IsFrozen() or false)
+	table.insert(self.LocalDeltaTimes, hitstop and hitstop:GetLocalDeltaTime(deltaTime) or deltaTime)
+end
+function Probe:Update()
+	self.UpdateCount += 1
+end
+
+-- Construction, request validation, defaults, and frame units.
+local world = World.new()
+local simulation = Simulation.new(world, { FixedDeltaTime = 0.1 })
+local a, b = world:CreateEntity(), world:CreateEntity()
+local stopA = a:AddComponent(HitstopComponent.new())
+local probeA, probeB = a:AddComponent(Probe.new()), b:AddComponent(Probe.new())
+local resolver = world:GetHitstopResolver()
+check(type(resolver) == "table", "World should own a HitstopResolver")
+check(stopA:GetRemainingFrames() == 0 and not stopA:IsFrozen(), "Hitstop starts inactive")
+check(stopA:GetLocalDeltaTime(0.1) == 0.1, "Unfrozen local time follows global delta")
+local defaultRequest = HitstopRequest.new({ Target = a, Frames = 3 })
+check(defaultRequest.Priority == 0 and defaultRequest.Frames == 3, "Priority defaults independently to zero")
+check(defaultRequest.Target == a and defaultRequest.Source == nil, "Request stores optional source and target")
+local ok = pcall(function() HitstopRequest.new({ Target = a, Frames = -1 }) end)
+check(not ok, "Negative frame duration is invalid")
+ok = pcall(function() HitstopRequest.new({ Target = a, Frames = 1.5 }) end)
+check(not ok, "Fractional duration is invalid")
+ok = pcall(function() HitstopRequest.new({ Target = a, Frames = math.huge }) end)
+check(not ok, "Infinite duration is invalid")
+ok = pcall(function() HitstopRequest.new({ Target = a, Frames = 1, Priority = math.huge }) end)
+check(not ok, "Infinite priority is invalid")
+ok = pcall(function() HitstopRequest.new({ Frames = 1 }) end)
+check(not ok, "A target entity is required")
+ok = pcall(function() HitstopRequest.new({ Target = a, Frames = 0.25 }) end)
+check(not ok, "Subframe duration is invalid")
+local zero = resolver:Submit({ Target = a, Frames = 0 })
+check(zero.Frames == 0, "Zero frames are represented as a valid no-op request")
+resolver:Process(0)
+check(resolver:GetResults()[1].Outcome == TimeEffectResult.ZeroFrames, "Zero-frame request is reported")
+check(stopA:GetRemainingFrames() == 0, "Zero-frame request does not freeze")
+
+-- An N-frame request freezes exactly N World steps; global time and lifecycle continue.
+resolver:Submit({ Target = a, Frames = 3 })
+check(#resolver:GetPendingRequests() == 1, "Requests queue until resolver processing")
+check(#resolver:Process(1) == 1, "Resolver returns one result per target")
+check(resolver:GetResults()[1].Outcome == TimeEffectResult.Applied, "First request is applied")
+check(stopA:GetRemainingFrames() == 3 and stopA:IsFrozen(), "Three frames are active before the first step")
+check(stopA:GetLocalDeltaTime(0.1) == 0, "Frozen local delta is zero")
+simulation:Step()
+check(probeA.StepCount == 1 and probeA.FrozenDuringStep[1], "Components still receive Step while frozen")
+check(probeA.LocalDeltaTimes[1] == 0, "Opt-in component observes zero local time")
+check(probeB.StepCount == 1 and not probeB.FrozenDuringStep[1], "Another entity continues normally")
+check(stopA:GetRemainingFrames() == 2, "One frame is consumed after the complete World step")
+check(simulation:GetGameTime():GetFrame() == 1, "Global GameTime advances during Hitstop")
+check(simulation:GetGameTime():GetTime() == 0.1, "Global time retains the fixed timestep")
+simulation:Step()
+check(probeA.FrozenDuringStep[2] and stopA:GetRemainingFrames() == 1, "Second frozen step is counted")
+simulation:Step()
+check(probeA.FrozenDuringStep[3] and stopA:GetRemainingFrames() == 0, "Third frozen step expires Hitstop")
+check(not stopA:IsFrozen() and stopA.Priority == nil, "Expired effect clears active priority")
+simulation:Step()
+check(not probeA.FrozenDuringStep[4] and probeA.LocalDeltaTimes[4] == 0.1, "Entity advances on the next step")
+world:Update(0.1)
+check(probeA.UpdateCount == 1 and probeB.UpdateCount == 1, "Update remains available during the World lifecycle")
+check(simulation:GetGameTime():GetFrame() == 4, "The global frame count never pauses")
+
+-- Same-target request arbitration: priority first, then longest duration; input order is irrelevant.
+local arbiterWorld = World.new()
+local arbiterTarget = arbiterWorld:CreateEntity()
+local arbiterStop = arbiterTarget:AddComponent(HitstopComponent.new())
+local arbiter = HitstopResolver.new(arbiterWorld)
+arbiter:Submit({ Target = arbiterTarget, Frames = 7, Priority = 2 })
+arbiter:Submit({ Target = arbiterTarget, Frames = 10, Priority = 1 })
+arbiter:Submit({ Target = arbiterTarget, Frames = 4, Priority = 2 })
+local arbitration = arbiter:Process(10)
+check(#arbitration == 1, "Multiple requests to one entity produce one resolved result")
+check(arbitration[1].Frames == 7 and arbitration[1].Priority == 2, "Highest priority wins; same-priority tie takes longest duration")
+check(arbiterStop:GetRemainingFrames() == 7, "The selected request controls the component")
+check(arbiterStop.Priority == 2, "Hitstop priority is not Attack or Motion priority")
+
+local function arbitrationTrace(reverse)
+	local traceWorld = World.new()
+	local target = traceWorld:CreateEntity()
+	target:AddComponent(HitstopComponent.new())
+	local traceResolver = HitstopResolver.new(traceWorld)
+	local requests = {
+		{ Target = target, Frames = 5, Priority = 4 },
+		{ Target = target, Frames = 9, Priority = 3 },
+		{ Target = target, Frames = 8, Priority = 4 },
+	}
+	if reverse then
+		for i = #requests, 1, -1 do traceResolver:Submit(requests[i]) end
+	else
+		for _, request in ipairs(requests) do traceResolver:Submit(request) end
+	end
+	traceResolver:Process(1)
+	return target:GetComponent(HitstopComponent):GetRemainingFrames(), traceResolver:GetResults()[1].Priority
+end
+local traceFramesA, tracePriorityA = arbitrationTrace(false)
+local traceFramesB, tracePriorityB = arbitrationTrace(true)
+check(traceFramesA == 8 and traceFramesB == 8, "Same-priority requests extend to the maximum duration")
+check(tracePriorityA == tracePriorityB, "Priority result is independent from input order")
+check(traceFramesA == traceFramesB, "Arbitration trace is deterministic")
+
+-- Reapplication and priority policy against an already-running effect.
+check(arbiterStop:Apply(3, 1, nil) == "Ignored", "Lower-priority reapplication is ignored")
+check(arbiterStop:GetRemainingFrames() == 7, "Ignored requests do not shorten the active effect")
+check(arbiterStop:Apply(9, 2, nil) == "Extended", "Equal priority may extend duration")
+check(arbiterStop:GetRemainingFrames() == 9, "Extension keeps the longer duration")
+check(arbiterStop:Apply(2, 3, nil) == "Applied", "Higher priority replaces the active effect")
+check(arbiterStop:GetRemainingFrames() == 2 and arbiterStop.Priority == 3, "Higher priority takes precedence even with shorter duration")
+check(arbiterStop:Apply(2, 3, nil) == "Ignored", "Equal priority and equal duration is idempotent")
+check(arbiterStop:Apply(1, 3, nil) == "Ignored", "Equal priority cannot shorten the effect")
+arbiterStop:Clear()
+check(arbiterStop:GetRemainingFrames() == 0 and not arbiterStop:IsFrozen(), "Clear removes all active temporal state")
+check(arbiterStop.Priority == nil and arbiterStop.Source == nil, "Clear removes priority and source")
+
+-- Component enable/detach lifecycle and request outcomes.
+arbiterStop:SetEnabled(false)
+check(not arbiterStop:IsEnabled(), "Component can be disabled")
+arbiter:Submit({ Target = arbiterTarget, Frames = 4 })
+arbiter:Process(11)
+check(arbiter:GetResults()[1].Outcome == TimeEffectResult.Disabled, "Disabled component rejects new effects")
+check(not arbiterStop:IsFrozen(), "Disabled component never reports frozen")
+arbiterStop:SetEnabled(true)
+check(arbiterStop:IsEnabled(), "Component can be re-enabled")
+arbiter:Submit({ Target = arbiterTarget, Frames = 2 })
+arbiter:Process(12)
+check(arbiterStop:IsFrozen(), "Re-enabled component accepts a new request")
+arbiterTarget:RemoveComponent(HitstopComponent)
+check(arbiterStop.Entity == nil and arbiterStop:GetRemainingFrames() == 0, "Detach clears state and component ownership")
+arbiter:Submit({ Target = arbiterTarget, Frames = 2 })
+arbiter:Process(13)
+check(arbiter:GetResults()[1].Outcome == TimeEffectResult.MissingComponent, "Resolver does not add components implicitly")
+local bareEntity = arbiterWorld:CreateEntity()
+arbiter:Submit({ Target = bareEntity, Frames = 2 })
+arbiter:Process(14)
+check(arbiter:GetResults()[1].Outcome == TimeEffectResult.MissingComponent, "Entities need no Character or Health but opt into Hitstop")
+local destroyedEntity = arbiterWorld:CreateEntity()
+destroyedEntity:AddComponent(HitstopComponent.new())
+arbiterWorld:DestroyEntity(destroyedEntity)
+arbiter:Submit({ Target = destroyedEntity, Frames = 2 })
+arbiter:Process(15)
+check(arbiter:GetResults()[1].Outcome == TimeEffectResult.EntityUnavailable, "Destroyed target is handled without an error")
+
+-- Dead entities may retain a time effect, but Hitstop never changes EntityState.
+local deadEntity = arbiterWorld:CreateEntity()
+local deadStop = deadEntity:AddComponent(HitstopComponent.new())
+deadEntity:SetState(EntityState.Dead)
+arbiter:Submit({ Target = deadEntity, Frames = 2 })
+arbiter:Process(16)
+check(deadStop:IsFrozen() and deadEntity:IsDead(), "Dead entities can carry Hitstop without changing state")
+arbiter:AdvanceStep()
+check(deadStop:GetRemainingFrames() == 1 and deadEntity:IsDead(), "Dead state persists while Hitstop counts down")
+arbiter:AdvanceStep()
+check(deadStop:GetRemainingFrames() == 0 and deadEntity:IsDead(), "Hitstop expiry never revives a Dead entity")
+
+-- Status/Hitstun opts into local combat time and remains distinct from Hitstop.
+local reactionWorld = World.new()
+local reactionSimulation = Simulation.new(reactionWorld, { FixedDeltaTime = 1 / 60 })
+local reacting = reactionWorld:CreateEntity()
+local reactionStop = reacting:AddComponent(HitstopComponent.new())
+local statuses = reacting:AddComponent(StatusContainer.new())
+local stun = Hitstun.new({ DurationFrames = 2 })
+statuses:AddStatus(stun)
+reactionWorld:GetHitstopResolver():Submit({ Target = reacting, Frames = 2 })
+reactionSimulation:Step()
+check(statuses:HasStatus("Hitstun") and stun.RemainingFrames == 2, "Hitstop pauses Hitstun duration through local time")
+check(reactionStop:GetRemainingFrames() == 1, "Hitstop and Hitstun are independent concurrent effects")
+reactionSimulation:Step()
+check(statuses:HasStatus("Hitstun") and stun.RemainingFrames == 2, "Hitstun remains active through the final frozen step")
+reactionSimulation:Step()
+check(stun.RemainingFrames == 1, "Hitstun resumes after Hitstop expires")
+reactionSimulation:Step()
+check(not statuses:HasStatus("Hitstun"), "Hitstun expires on its own subsequent simulation steps")
+check(reactionStop:GetRemainingFrames() == 0, "Hitstop has its independent frame lifetime")
+
+-- Motion requests are deferred while frozen; no Roblox physics API is involved.
+local motionWorld = World.new()
+local motionEntity = motionWorld:CreateEntity()
+local motionStop = motionEntity:AddComponent(HitstopComponent.new())
+local motion = motionEntity:AddComponent(MotionComponent.new())
+motion:ApplyRequest({ Target = motionEntity, Type = "Impulse", Direction = Vector3.new(1, 0, 0), Magnitude = 10 })
+motionStop:Apply(2, 0, nil)
+check(#motion:Process(1) == 0, "Motion does not resolve while local time is frozen")
+check(#motion:GetPendingRequests() == 1, "Motion request remains queued during Hitstop")
+motionStop:AdvanceStep()
+check(#motion:Process(2) == 0 and #motion:GetPendingRequests() == 1, "Motion remains deferred for every active frame")
+motionStop:AdvanceStep()
+check(not motionStop:IsFrozen(), "Motion entity resumes after the configured duration")
+check(#motion:Process(3) == 1 and #motion:GetPendingRequests() == 0, "Queued motion resolves after Hitstop")
+check(motion:GetMotionResults()[1].Target == motionEntity, "Motion remains targeted at its original entity")
+
+-- Request source is generic; no Attack, Damage, Health, or Character is required.
+local logicalWorld = World.new()
+local logical = logicalWorld:CreateEntity()
+local logicalStop = logical:AddComponent(HitstopComponent.new())
+local source = logicalWorld:CreateEntity()
+logicalWorld:GetHitstopResolver():Submit({ Source = source, Target = logical, Frames = 1, Priority = 9 })
+logicalWorld:Step(1 / 60, 1, 1 / 60)
+check(logicalStop:GetRemainingFrames() == 0 and logical:IsAlive(), "One-frame Hitstop expires after one complete World step")
+check(logical:GetComponent(HealthComponent) == nil, "Hitstop has no HealthComponent requirement")
+check(logical:GetComponent(HitstopComponent) ~= nil, "Logical entity can use Hitstop without Character")
+check(logicalWorld:GetTimeEffectResults()[1].Source == source, "Result preserves a generic source identity")
+check(logicalWorld:GetTimeEffectResults()[1].TargetId == logical.Id, "Result exposes a deterministic target ID")
+check(logicalWorld:GetTimeEffectResults()[1].Priority == 9, "Result preserves Hitstop's own priority")
+check(logicalWorld:GetTimeEffectResults()[1].Type == "Hitstop", "Result identifies the temporal effect type")
+check(logicalWorld:GetTimeEffectResults()[1].Outcome == TimeEffectResult.Applied, "World pipeline reports successful application")
+
+local healthWorld = World.new()
+local healthTarget = healthWorld:CreateEntity()
+local health = healthTarget:AddComponent(HealthComponent.new({ MaxHealth = 20 }))
+healthTarget:AddComponent(HitstopComponent.new())
+healthWorld:GetHitstopResolver():Submit({ Target = healthTarget, Frames = 2 })
+healthWorld:Step(1 / 60, 1, 1 / 60)
+check(health:GetHealth() == 20, "Hitstop alone never creates damage or changes Health")
+
+check(passed >= 50, "The time effect suite must include at least 50 significant assertions")
+print("Combat time effect tests passed")
