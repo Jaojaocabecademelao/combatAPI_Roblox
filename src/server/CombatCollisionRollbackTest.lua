@@ -13,6 +13,7 @@ local AttackCatalog = require(Shared.Combat.AttackCatalog)
 local world = World.new()
 local collision = CollisionWorld.new(world)
 local attackCatalog = AttackCatalog.new()
+local secondAttacker = world:CreateEntity()
 local attackDefinition = Attack.new({
 	Id = "rollback-test-light", Damage = 5, Hitstun = 8,
 	CustomData = { Radius = 2, Mode = "Charge" },
@@ -27,7 +28,7 @@ local hurtbox = Hurtbox.new({ Shape = "Box", Position = Vector3.new(1, 0, 0), Si
 local attackInstance = AttackInstance.new(attackDefinition, attacker, world.IdGenerator, {
 	CustomDataOverrides = { Radius = 5 },
 })
-local secondInstance = AttackInstance.new(attackDefinition, attacker, world.IdGenerator, {
+local secondInstance = AttackInstance.new(attackDefinition, secondAttacker, world.IdGenerator, {
 	CustomDataOverrides = { Radius = 8, Mode = "Burst" },
 })
 attackInstance:Activate()
@@ -35,7 +36,7 @@ secondInstance:Activate()
 attackInstance:AddHitbox(hitbox)
 secondInstance:AddHitbox(secondHitbox)
 attacker:AddComponent(hitbox)
-attacker:AddComponent(secondHitbox)
+secondAttacker:AddComponent(secondHitbox)
 target:AddComponent(hurtbox)
 
 collision:Step(1 / 60, 1, 1 / 60)
@@ -58,7 +59,7 @@ local laterInstance = AttackInstance.new(attackDefinition, attacker, world.IdGen
 })
 attackInstance.CustomDataOverrides = laterInstance.CustomDataOverrides
 attackInstance.OffensiveProperties = laterInstance.OffensiveProperties
-local secondLaterInstance = AttackInstance.new(attackDefinition, attacker, world.IdGenerator, {
+local secondLaterInstance = AttackInstance.new(attackDefinition, secondAttacker, world.IdGenerator, {
 	CustomDataOverrides = { Radius = 11, Mode = "Later" },
 })
 secondInstance.CustomDataOverrides = secondLaterInstance.CustomDataOverrides

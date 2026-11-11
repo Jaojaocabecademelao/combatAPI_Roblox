@@ -5,9 +5,10 @@
 Os testes automatizados do projeto são módulos `*Test.lua` em `src/server/`.
 No Roblox Studio, `CombatTestRunner.server.lua` descobre esses módulos, executa
 suas funções em ordem alfabética, aplica timeout de 30 segundos por teste e
-imprime um resultado estruturado por módulo. Uma falha é reportada no Output e
-no final da execução; timeout interrompe a suíte para evitar continuar com um
-teste possivelmente ainda ativo.
+imprime um resultado estruturado por módulo. O runner impede inicialização
+repetida na mesma sessão e deduplica módulos com o mesmo nome, emitindo um aviso
+no Output. Uma falha é reportada no Output e no final da execução; timeout
+interrompe a suíte para evitar continuar com um teste possivelmente ainda ativo.
 
 A suíte cobre módulos isolados e integrações entre World, Simulation, combate,
 colisão, eventos, rollback, determinismo e replay. `CombatDocumentationTest`

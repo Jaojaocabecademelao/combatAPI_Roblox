@@ -134,16 +134,19 @@ local documentedTests = {
 	"CombatTopologyRebuildRollbackTest.lua", "HitstopComponentRollbackTest.lua",
 	"HitstopResolverRollbackTest.lua",
 }
-local mountedTestCount = 0
+local mountedTestModules = {}
 for _, child in ipairs(ServerTests:GetChildren()) do
-	if child:IsA("ModuleScript") and string.match(child.Name, "Test$") then mountedTestCount += 1 end
+	if child:IsA("ModuleScript") and string.match(child.Name, "Test$") then
+		mountedTestModules[child.Name] = true
+	end
 end
+local mountedTestCount = 0
+for _ in pairs(mountedTestModules) do mountedTestCount += 1 end
 check(mountedTestCount == #documentedTests,
-	"Documented test inventory matches all mounted test modules")
+	"Documented test inventory matches all distinct mounted test module names")
 for _, testName in ipairs(documentedTests) do
 	local instanceName = string.gsub(testName, "%.lua$", "")
-	local testModule = ServerTests:FindFirstChild(instanceName)
-	check(testModule ~= nil and testModule:IsA("ModuleScript"),
+	check(mountedTestModules[instanceName] == true,
 		"Documented test module exists: " .. testName)
 end
 local smokeTest = ServerTests:FindFirstChild("CombatMultiplayerSmokeTest")

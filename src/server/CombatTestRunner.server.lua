@@ -7,11 +7,26 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local ServerTests = ServerScriptService:WaitForChild("Server")
 local TEST_TIMEOUT_SECONDS = 30
 
-local tests = {}
+if ServerTests:GetAttribute("CombatTestRunnerStarted") then
+	warn("CombatTestRunner already started for this server session")
+	return
+end
+ServerTests:SetAttribute("CombatTestRunnerStarted", true)
+
+local testsByName = {}
 for _, child in ipairs(ServerTests:GetChildren()) do
 	if child:IsA("ModuleScript") and string.match(child.Name, "Test$") then
-		table.insert(tests, child)
+		if testsByName[child.Name] then
+			warn(("CombatTestRunner found duplicate test module %q; running one copy")
+				:format(child.Name))
+		else
+			testsByName[child.Name] = child
+		end
 	end
+end
+local tests = {}
+for _, testModule in pairs(testsByName) do
+	table.insert(tests, testModule)
 end
 table.sort(tests, function(left, right)
 	return left.Name < right.Name

@@ -9,13 +9,13 @@ os resultados dessa execução.
 
 | Fase | Estado nesta revisão | Evidência / pendência |
 |---|---|---|
-| 0 — Preparação | Parcial | Os contratos `API.md`, `Conventions.md`, `Rollback.md` e `Testing.md` estão na árvore ativa; o registro de migração 2 → 3 está em `CombatStateSchema.new`. O benchmark contém cenário com instâncias com/sem override. Ainda faltam executar a suíte original e registrar números de linha de base no Roblox Studio. |
-| 1 — Núcleo do dado | Implementação presente | `OffensiveProperties`, `Attack` e `CombatAttackCustomDataTest` cobrem validação, cópia, congelamento e espelhamento. Execução em Studio pendente. |
-| 2 — Instância e acerto | Implementação presente | `AttackInstance` mantém o argumento escalar legado e aceita opções; `HitProcessor` repassa o dado no fallback. Testes de propriedades e instância estão presentes. Execução em Studio pendente. |
-| 3 e 4 — Catálogo, snapshot e schema | Implementação presente | Manifest v2, schema v3/migração 2 → 3, captura/validação/restauração in-place e rebuild de topologia. O teste de colisão agora cobre dois overrides diferentes para duas instâncias da mesma definição. Execução em Studio pendente. |
-| 5 — Eventos públicos | Implementação presente | `HitConfirmed` e `DamageApplied` encaminham a referência congelada; `CombatEventAPITest` verifica preservação de chave `Id` e identidade da referência. Execução em Studio pendente. |
-| 6 — Determinismo, replay e performance | Parcial | Adicionado `CombatCustomDataReplayTest`: hashes equivalentes para overrides derivados de frames, divergência de hash para valor divergente e fingerprint baseado no manifest. O benchmark mede captura, serialização, validação, preparação/restauração e tamanho de snapshot com/sem overrides. Ainda faltam executar o teste e coletar/ comparar medições reais com a linha de base. |
-| 7 — Documentação e changelog | Documentação presente | `API.md`, `Conventions.md`, `Rollback.md`, `Testing.md`, `CUSTOMDATA.md` e `CHANGELOG.md` descrevem o contrato. O inventário do `CombatDocumentationTest` foi atualizado para incluir o novo teste de replay. Execução em Studio pendente. |
+| 0 — Preparação | Parcial | Os contratos e migrações estão na árvore ativa e a suíte foi executada no Studio. Há uma medição registrada abaixo, mas não existe benchmark pré-CustomData comparável; a linha de base de performance ainda está pendente. |
+| 1 — Núcleo do dado | Testes de runtime passaram | `CombatAttackCustomDataTest` e os demais módulos passaram na execução Studio de 2026-11-11. |
+| 2 — Instância e acerto | Testes de runtime passaram | A suíte Studio completa passou; inclui validação de propriedades e fallback do hit processor. |
+| 3 e 4 — Catálogo, snapshot e schema | Testes de runtime passaram | A suíte Studio completa passou, incluindo catálogo, migração, rollback de colisão e rebuild de topologia. |
+| 5 — Eventos públicos | Testes de runtime passaram | A suíte Studio completa passou; `CombatEventAPITest` está incluído nos 61 módulos aprovados. |
+| 6 — Determinismo, replay e performance | Replay passou; benchmark medido sem baseline comparável | `CombatCustomDataReplayTest` passou. O benchmark coletou tempos e tamanho de snapshot com/sem overrides; ainda não há medição pré-CustomData para avaliar regressão. |
+| 7 — Documentação e changelog | Testes de runtime passaram | A suíte Studio completa passou, incluindo `CombatDocumentationTest` e `CombatDocumentationExamplesTest`. |
 
 ## Verificações estáticas realizadas
 
@@ -25,17 +25,49 @@ os resultados dessa execução.
   encaminhamento aos eventos públicos.
 - O teste novo de replay está incluído no inventário de documentação.
 
-## Critério para fechar as fases
+## Última execução no Roblox Studio — 2026-11-11
 
-Executar no Roblox Studio a suíte completa de módulos `*Test.lua`, incluindo
-`CombatDocumentationTest`, `CombatDocumentationExamplesTest` e
-`CombatCustomDataReplayTest`. Em seguida, executar
-`CombatStabilizationBenchmark.server.lua` com os mesmos atributos e ambiente da
-linha de base, guardar os relatórios e investigar regressões antes de declarar
-as Fases 0 e 6 aprovadas.
+- `CombatTestRunner: PASS (61 tests)`; 61 resultados `TEST PASS` distintos e
+  nenhum `TEST FAIL`. A lista incluiu `CombatDocumentationTest`,
+  `CombatDocumentationExamplesTest`, `CombatCustomDataReplayTest` e
+  `CombatAPIPublicContractTest`.
+- O place continha duas cópias de cada módulo automatizado. O runner emitiu 61
+  avisos de duplicação e executou uma cópia por nome. Uma segunda inicialização
+  do runner foi bloqueada como esperado. A causa da duplicação no place não foi
+  identificada nesta revisão.
+- O Output também registrou duas falhas ao carregar
+  `rbxassetid://203785492` por incompatibilidade de tipo do asset; não são
+  resultados de `TEST FAIL`, mas impedem considerar o Output inteiro sem erros.
+- O smoke multiplayer registrou zero clientes no início e apenas um cliente
+  conectado; não há resultado de conclusão. Ele continua pendente até ser
+  executado com dois clientes.
 
-A revisão estática não substitui essa execução: este pacote não afirma que os
-testes passaram no Roblox Studio.
+Benchmark reportado com `entities=32`, `volumes=64`, `attackInstances=32`,
+`frames=30`, `repetitions=3`:
+
+| Métrica | Resultado |
+|---|---:|
+| Snapshot com overrides | 52 305 bytes |
+| Snapshot sem overrides | 51 253 bytes |
+| Bytes atribuídos aos overrides | 1 052 (16 overrides) |
+| Captura (média) | 0,001735 s |
+| Serialização (média) | 0,000445 s |
+| Validação de colisão (média) | 0,000289 s |
+| Preparação/restauração (média) | 0,000417 s |
+| Step (média) | 0,034920 s |
+| Restore/replay (média) | 0,043680 s |
+
+Uma execução anterior no mesmo log de trabalho usou a mesma configuração, mas
+também não é uma linha de base pré-CustomData. Diferenças pequenas de tempo entre
+essas duas execuções não são suficientes para concluir regressão ou ganho.
+
+## Pendências para fechar as fases
+
+A suíte automatizada já passou no Roblox Studio. Para fechar a validação geral,
+investigar a duplicação no place e os avisos de asset, executar
+`CombatMultiplayerSmokeTest.server.lua` com dois clientes e obter uma linha de
+base pré-CustomData do `CombatStabilizationBenchmark.server.lua` com os mesmos
+atributos e ambiente.
 
 
 ## Continuação do roadmap (Etapas A a C)
@@ -44,7 +76,7 @@ testes passaram no Roblox Studio.
 |---|---|---|
 | A — Consumidor de referência | Parcial, exemplo preparado | `docs/examples/CustomDataConsumer.server.lua` usa exports públicos para definir ataque, override, catálogo, hitbox e snapshot/restore. Precisa ser executado em Studio; lacunas encontradas devem ser registradas antes de declarar aceite. |
 | B — Contrato estável | Parcial, contrato documentado | `docs/PUBLIC_API.md`, `CombatAPI.SemVer`, `CombatAPITypes`, exports públicos e `CombatPublicSurfaceTest` adicionados. Tipagem estrita completa (`--!strict` em toda a superfície), política pós-1.0.0 validada e mapeamento específico de todos os códigos de erro ainda não estão concluídos. |
-| C — Infraestrutura | Runner implementado; validação Studio pendente | Os testes automatizados foram migrados para módulos executáveis sequencialmente pelo `CombatTestRunner.server.lua`, com timeout e resultado por módulo. CI valida o inventário, compila Rojo e o pacote Wally privado de prévia, publica artefatos e preserva diagnósticos consultivos. Execução real no Studio e publicação Wally continuam pendentes. |
+| C — Infraestrutura | Runner executado com sucesso; pendências de ambiente | 61 módulos passaram após correção da colisão e do inventário. O runner deduplica módulos e bloqueia inicialização repetida. O place ainda contém cópias duplicadas; o smoke de dois clientes e a análise da origem dessas duplicatas seguem pendentes. |
 
 A prioridade da Etapa D permanece pendente (decisão D8). As Etapas A e B continuam pré-requisitos antes de iniciar novas capacidades.
 
@@ -56,7 +88,7 @@ A prioridade da Etapa D permanece pendente (decisão D8). As Etapas A e B contin
 | Tipos públicos Luau | Ampliado | `CombatAPITypes.lua` agora descreve CustomData, Attack, AttackInstance, OffensiveProperties, APIError, APIResult e World; ainda requer análise Luau/Studio. |
 | Códigos de erro | Implementado | União documentada, registro congelado, `APIError.isCode` e validação de argumentos. |
 | Invariantes de resultado | Implementado | Sucesso não aceita Error; falha exige Error; `APIResult.is` disponível. |
-| Testes de contrato | Preparados | `CombatAPIPublicContractTest.lua`; execução em Studio pendente. |
+| Testes de contrato | Passaram em Studio | `CombatAPIPublicContractTest.lua` passou com 36 assertions na execução de 2026-11-11. |
 
 O mapeamento de falhas do facade de plugins agora preserva o código interno em `Error.Context.ResolverCode`. A tipagem estática foi ampliada, mas ainda não é correto declarar `--!strict` em toda a superfície pública: os módulos de implementação e os tipos de sistemas/resolvers precisam ser tipados por partes para evitar falsos contratos ou uma migração que apenas silencie erros com `any`.
 

@@ -101,7 +101,7 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 ### Limits
 
 - The Wally package remains private and has not been published.
-- Package installation in a separate consumer place and Roblox Studio runtime validation remain pending.
+- Package installation in a separate consumer place and the two-client multiplayer smoke test remain pending; the 61-module automated Studio suite passed.
 
 
 ## Infraestrutura de testes — runner sequencial
@@ -110,9 +110,12 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 
 - Os testes automatizados em `*Test.server.lua` foram migrados para módulos `*Test.lua` com função de execução.
 - `CombatTestRunner.server.lua` executa os módulos em ordem alfabética, captura falhas, aplica timeout por teste e interrompe a suíte em caso de timeout.
+- O runner evita execução duplicada por sessão e executa apenas um módulo por nome quando o place contém cópias repetidas; o teste de rollback de colisão usa uma entidade distinta para a segunda hitbox.
 - O smoke multiplayer continua separado, pois depende de dois clientes conectados.
 
 ### Limites
 
-- O runner, a suíte e o smoke multiplayer ainda precisam ser executados e validados no Roblox Studio.
+- A primeira execução completa no Roblox Studio passou nos 61 módulos automatizados; o smoke multiplayer ainda não foi concluído com dois clientes.
+- O place de teste contém cópias duplicadas dos módulos; o runner deduplica por nome e impede uma segunda inicialização.
+- O Output dessa execução também registrou duas falhas de carregamento do asset `rbxassetid://203785492`.
 - A CI valida inventário/build, mas não afirma que testes Roblox de runtime passaram.
