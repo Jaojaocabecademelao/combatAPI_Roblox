@@ -25,14 +25,60 @@ attackCatalog:Register(chargedAttack, 1)
 attackCatalog:Seal()
 collisionWorld:SetAttackCatalog(attackCatalog)
 
+local topologyCatalog = CombatAPI.CollisionTopologyCatalog.new()
+topologyCatalog:Register("example.charged-hitbox", 1, function(saved, owner)
+    assert(saved.Shape == "Box", "Unexpected example hitbox shape")
+    return CombatAPI.Hitbox.new({
+        Id = saved.Id,
+        Owner = owner,
+        Shape = "Box",
+        Size = Vector3.new(saved.Size[1], saved.Size[2], saved.Size[3]),
+        Position = Vector3.new(0, 0, 0),
+        Enabled = saved.Enabled,
+        Priority = saved.PriorityOverride,
+        ClashGroup = saved.ClashGroup,
+        Damage = saved.Damage,
+        Hitstun = saved.Hitstun,
+        HitPolicy = saved.HitPolicy,
+        HitScope = saved.HitScope,
+        TopologyDefinitionId = "example.charged-hitbox",
+        TopologyDefinitionVersion = 1,
+    })
+end)
+topologyCatalog:Seal()
+collisionWorld:SetTopologyCatalog(topologyCatalog)
+
 local attacker = world:CreateEntity()
 local attackerId = attacker.Id
+local hitbox = CombatAPI.Hitbox.new({
+    Id = 7001,
+    Owner = attacker,
+    AttackId = chargedAttack.Id,
+    Position = Vector3.new(0, 3, 0),
+    Size = Vector3.new(6, 4, 6),
+    Damage = 12,
+    Hitstun = 18,
+    TopologyDefinitionId = "example.charged-hitbox",
+    TopologyDefinitionVersion = 1,
+})
+collisionWorld:RegisterHitbox(hitbox)
 local initialState = world:CaptureCombatState()
+
+local function getConsumerHitbox()
+    for _, region in ipairs(collisionWorld:GetHitboxes()) do
+        if region.Id == 7001 then
+            return region
+        end
+    end
+    return nil
+end
 
 local function applyCharge(chargeFrames: number)
     -- Restore rebuilds the entity roster, so always reacquire by stable ID.
     local owner = world:GetEntity(attackerId)
     assert(owner ~= nil, "Attacker entity is unavailable")
+    local currentHitbox = getConsumerHitbox()
+    assert(currentHitbox ~= nil, "Hitbox is unavailable after collision topology restore")
 
     local radius = 3 + math.floor(chargeFrames / 12)
     local attackInstance = CombatAPI.AttackInstance.new(chargedAttack, owner, nil, {
@@ -44,16 +90,8 @@ local function applyCharge(chargeFrames: number)
         },
     })
 
-    local hitbox = CombatAPI.Hitbox.new({
-        Id = 7001,
-        AttackId = chargedAttack.Id,
-        Position = Vector3.new(0, 3, 0),
-        Size = Vector3.new(radius * 2, 4, radius * 2),
-        Damage = 12,
-        Hitstun = 18,
-    })
-    attackInstance:AddHitbox(hitbox)
-    owner:AddComponent(hitbox)
+    currentHitbox.Size = Vector3.new(radius * 2, 4, radius * 2)
+    attackInstance:AddHitbox(currentHitbox)
 end
 
 local chargeFrames = 24
@@ -62,6 +100,9 @@ local firstRunState = world:CaptureCombatState()
 local firstRunHash = world:HashCombatState(firstRunState)
 
 -- Roll back to the pre-action state and replay the same deterministic input.
+local activeInstance = hitbox.AttackInstance
+assert(activeInstance ~= nil, "AttackInstance is not attached to the Hitbox")
+activeInstance:RemoveHitbox(hitbox)
 local restored, restoreError = world:RestoreCombatState(initialState)
 assert(restored, "Initial rollback failed: " .. tostring(restoreError))
 applyCharge(chargeFrames)

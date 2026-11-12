@@ -234,11 +234,26 @@ do
 	local publicWorld=CombatAPI.CreateWorld(); local publicContext=CombatAPI.GetAPIContext(publicWorld)
 	local registration=CombatAPI.RegisterPlugin(publicWorld,{Id="Public",Name="Public",Version="1.0.0"})
 	check(registration.Success and registration.Value.Code=="Registered","Public API registers plugin with APIResult")
+	local duplicate=publicContext:RegisterPlugin(make("Public"))
+	check(not duplicate.Success and duplicate.Error.Code=="AlreadyExists"
+		and duplicate.Error.Context.ResolverCode=="DuplicatePlugin",
+		"APIContext maps duplicate plugin codes to the stable APIError contract")
 	local found=publicContext:GetPlugin("Public"); check(found.Success and found.Value.Id=="Public","API context queries plugin")
+	local missing=publicContext:StartPlugin("Missing")
+	check(not missing.Success and missing.Error.Code=="NotFound"
+		and missing.Error.Context.ResolverCode=="PluginNotFound",
+		"APIContext maps missing plugins to NotFound")
 	local start=CombatAPI.StartPlugin(publicWorld,"Public"); check(start.Success and publicWorld:GetPluginResolver():GetPluginState("Public")==State.Active,"Public API starts plugin")
+	local disabledPlugin=make("DisabledPublic")
+	check(publicContext:RegisterPlugin(disabledPlugin).Success,"APIContext registers a plugin for error mapping")
+	check(publicContext:DisablePlugin(disabledPlugin.Id).Success,"APIContext disables the plugin")
+	local disabledStart=CombatAPI.StartPlugin(publicWorld,disabledPlugin.Id)
+	check(not disabledStart.Success and disabledStart.Error.Code=="Disabled"
+		and disabledStart.Error.Context.ResolverCode=="PluginDisabled",
+		"CombatAPI facade maps disabled plugin failures to Disabled")
 	local contextResolver=publicContext:GetPluginResolver(); check(contextResolver==publicWorld:GetPluginResolver(),"Public API context exposes plugin resolver")
 	check(publicContext:HasFeature("Plugins") and publicContext:HasSystem("Plugins"),"Plugins are discoverable through public API feature queries")
-	local missing=CombatAPI.RegisterPlugin({},{}); check(not missing.Success,"Public API rejects non-world target")
+	local invalidWorld=CombatAPI.RegisterPlugin({},{}); check(not invalidWorld.Success,"Public API rejects non-world target")
 	publicContext:StopPlugin("Public"); publicWorld:Destroy(); check(publicContext:GetPluginResolver()==nil,"Destroyed API context cannot access plugin resolver")
 	local modeSeen={}; local modePlugin=make("Modes",{}, {Initialize=function(ctx)
 		ctx:Subscribe("ModeEvent",function(event) modeSeen[#modeSeen+1]=event.ExecutionMode end)

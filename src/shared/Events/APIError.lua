@@ -23,6 +23,13 @@ export type Error = {
 	Context: { [string]: any }?,
 }
 
+type ResolverFailure = {
+	Success: false,
+	Code: string,
+	PluginId: string?,
+	Details: any?,
+}
+
 local codes: { [string]: Code } = {
 	InvalidArgument = "InvalidArgument",
 	InvalidEntity = "InvalidEntity",
@@ -34,6 +41,31 @@ local codes: { [string]: Code } = {
 	PermissionDenied = "PermissionDenied",
 	InternalError = "InternalError",
 	Destroyed = "Destroyed",
+}
+
+local resolverCodeMap: { [string]: Code } = {
+	WorldDestroyed = "Destroyed",
+	InvalidPlugin = "InvalidArgument",
+	InvalidCapabilityId = "InvalidArgument",
+	InvalidCapabilityVersion = "InvalidArgument",
+	PluginAlreadyOwned = "AlreadyExists",
+	DuplicatePlugin = "AlreadyExists",
+	CapabilityConflict = "AlreadyExists",
+	PluginNotFound = "NotFound",
+	CapabilityNotFound = "NotFound",
+	DependencyMissing = "NotFound",
+	PluginDisabled = "Disabled",
+	PermissionDenied = "PermissionDenied",
+	CapabilityNotDeclared = "PermissionDenied",
+	InitializationFailed = "InternalError",
+	PluginRuntimeFailed = "InternalError",
+	StopFailed = "InternalError",
+	ActiveDependents = "InvalidOperation",
+	PluginActive = "InvalidOperation",
+	InvalidLifecycleState = "InvalidOperation",
+	DependencyVersionMismatch = "InvalidOperation",
+	DependencyCycle = "InvalidOperation",
+	DependencyFailed = "InvalidOperation",
 }
 
 APIError.Code = table.freeze(codes)
@@ -64,6 +96,34 @@ function APIError.new(
 		Context = context,
 	}, APIError)
 	return table.freeze(result) :: any
+end
+
+function APIError.fromResolverResult(
+	result: ResolverFailure,
+	system: string?,
+	frame: number?
+): Error
+	assert(type(result) == "table" and result.Success == false and type(result.Code) == "string",
+		"APIError.fromResolverResult requires a failed resolver result")
+	local context: { [string]: any } = {}
+	if type(result.Details) == "table" then
+		for key, value in pairs(result.Details) do
+			context[key] = value
+		end
+	elseif result.Details ~= nil then
+		context.ResolverDetails = result.Details
+	end
+	context.ResolverCode = result.Code
+	if result.PluginId ~= nil then
+		context.PluginId = result.PluginId
+	end
+	return APIError.new(
+		resolverCodeMap[result.Code] or APIError.Code.InvalidOperation,
+		result.Code,
+		system,
+		frame,
+		context
+	)
 end
 
 return table.freeze(APIError)

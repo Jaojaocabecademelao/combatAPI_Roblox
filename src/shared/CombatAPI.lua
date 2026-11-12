@@ -16,16 +16,19 @@ local RobloxRemoteEventAdapter = require(script.Parent.Combat.RobloxRemoteEventA
 local Attack = require(script.Parent.Combat.Attack)
 local AttackInstance = require(script.Parent.Combat.AttackInstance)
 local AttackCatalog = require(script.Parent.Combat.AttackCatalog)
+local CollisionTopologyCatalog = require(script.Parent.Combat.CollisionTopologyCatalog)
 local CollisionWorld = require(script.Parent.Combat.CollisionWorld)
 local Hitbox = require(script.Parent.Combat.Hitbox)
 local Hurtbox = require(script.Parent.Combat.Hurtbox)
 local OffensiveProperties = require(script.Parent.Combat.OffensiveProperties)
 local CombatStateSchema = require(script.Parent.Combat.CombatStateSchema)
 
+type CombatTypes = require(script.Parent.CombatAPITypes)
+
 local function wrapPluginResult(result, world)
 	local err = nil
 	if not result.Success then
-		err = APIError.new(APIError.Code.InvalidOperation, tostring(result.Code), "Plugins", world and world.CurrentFrame)
+		err = APIError.fromResolverResult(result, "Plugins", world and world.CurrentFrame)
 	end
 	return APIResult.new(result.Success, result, err)
 end
@@ -35,7 +38,7 @@ local CombatAPI = {
 	-- Version is retained as the numeric API generation for existing consumers.
 	Version = 1,
 	-- SemVer describes the package/API release independently from serialized contracts.
-	SemVer = "0.2.0",
+	SemVer = "0.3.0",
 	Contracts = table.freeze({
 		NetworkMessage = NetworkMessage.Version,
 		CombatActionDefinition = CombatActionDefinition.Version,
@@ -95,6 +98,7 @@ function CombatAPI.DisablePlugin(world,id)
 	local result=resolver:DisablePlugin(id)
 	return wrapPluginResult(result, world)
 end
+export type API = CombatTypes.CombatAPI
 CombatAPI.APIContext = APIContext
 CombatAPI.Simulation = Simulation
 CombatAPI.EventTypes = EventTypes
@@ -112,6 +116,7 @@ CombatAPI.RobloxRemoteEventAdapter = RobloxRemoteEventAdapter
 CombatAPI.Attack = Attack
 CombatAPI.AttackInstance = AttackInstance
 CombatAPI.AttackCatalog = AttackCatalog
+CombatAPI.CollisionTopologyCatalog = CollisionTopologyCatalog
 CombatAPI.CollisionWorld = CollisionWorld
 CombatAPI.Hitbox = Hitbox
 CombatAPI.Hurtbox = Hurtbox

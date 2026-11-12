@@ -2,13 +2,17 @@ local APIResult = require(script.Parent.APIResult)
 local APIError = require(script.Parent.APIError)
 local EventBus = require(script.Parent.EventBus)
 
+type CombatTypes = require(script.Parent.Parent.CombatAPITypes)
+
+export type Context = CombatTypes.APIContext
+
 local APIContext = {}
 APIContext.__index = APIContext
 
 local function wrapResolverResult(result, system, frame)
 	local err = nil
 	if not result.Success then
-		err = APIError.new(APIError.Code.InvalidOperation, tostring(result.Code), system, frame, { ResolverCode = tostring(result.Code) })
+		err = APIError.fromResolverResult(result, system, frame)
 	end
 	return APIResult.new(result.Success, result, err)
 end

@@ -1,3 +1,7 @@
+type CombatTypes = require(script.Parent.Parent.CombatAPITypes)
+
+export type Value = CombatTypes.Event
+
 local Event = {}
 Event.__index = Event
 

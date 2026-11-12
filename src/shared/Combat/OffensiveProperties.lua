@@ -1,6 +1,10 @@
 local Damage = require(script.Parent.Damage)
 local Serializer = require(script.Parent.Parent.Simulation.StateSerializer)
 
+type CombatTypes = require(script.Parent.Parent.CombatAPITypes)
+
+export type Properties = CombatTypes.OffensiveProperties
+
 local OffensiveProperties = {}
 
 local function isFiniteNumber(value)

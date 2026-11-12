@@ -2,6 +2,22 @@
 
 Este arquivo registra mudanças do contrato público e de formatos de estado. A versão pública declarada em `src/shared/CombatAPI.lua` permanece **CombatAPI 1**; a política de SemVer/depreciação está em [`PUBLIC_API.md`](PUBLIC_API.md). As versões de schema/manifest são internas aos respectivos formatos, independentes da versão SemVer do pacote.
 
+## 0.3.0 — Catálogo público de topologia para rollback (2026-11-11)
+
+### Adicionado
+
+- Export de `CollisionTopologyCatalog` em `CombatAPI`, para registrar fábricas versionadas e reconstruir regiões em snapshots com topologia não vazia.
+- O teste e o exemplo consumidor usam o catálogo público para restaurar o World e reacquire a Hitbox recriada.
+- Documentação da necessidade de factories versionadas ao restaurar snapshots com regiões de colisão.
+- Tipos públicos Luau ampliados com construtores para consumidores, catálogo de ataques, opções de região, snapshots/fábricas de topologia e operações do `CollisionWorld`. O contrato representa IDs opcionais antes do registro e IDs garantidos depois do registro.
+- Tipos compartilhados ampliados com contratos de eventos, `APIContext`, `APIResult`, `APIError` e da fachada `CombatAPI`.
+- Falhas do PluginResolver agora são mapeadas para categorias estáveis de `APIError.Code`, preservando o código específico e detalhes em `Error.Context`.
+
+### Limites
+
+- O usuário confirmou sem erros a suíte atual de 62 módulos, incluindo as verificações de superfície pública; o log final não foi anexado e a análise Luau segue pendente.
+- Os testes do novo mapeamento de erro foram adicionados após a confirmação da suíte e ainda precisam de execução no Studio.
+
 ## 0.2.0 — Simulation pública para consumidores (2026-11-11)
 
 ### Adicionado

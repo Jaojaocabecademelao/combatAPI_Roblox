@@ -5,7 +5,7 @@
 `src/shared/CombatAPI.lua` returns a frozen module table. Current methods and exported types:
 
 `CombatAPI.Version` remains the integer API generation (`1`) for existing
-consumers. `CombatAPI.SemVer` reports the package release version (`0.2.0`),
+consumers. `CombatAPI.SemVer` reports the package release version (`0.3.0`),
 while `CombatAPI.Contracts` exposes independently versioned serialized
 contracts, including the attack catalog manifest and combat state schema.
 See [PUBLIC_API.md](PUBLIC_API.md) for the compatibility boundary and
@@ -23,6 +23,39 @@ local snapshot = world:CaptureCombatState()
 `Simulation.new(world, options)` associates itself with the World. A fixed seed
 makes the deterministic random stream reproducible across equivalent worlds.
 
+For rollback snapshots containing collision regions, register versioned region
+factories with the public `CollisionTopologyCatalog` and attach it using
+`collisionWorld:SetTopologyCatalog(topologyCatalog)`. Factories must rebuild a
+fresh region with its saved ID, owner, shape, behavior, and topology definition.
+Snapshots with non-empty collision topology cannot be restored without this
+catalog:
+
+```lua
+local collisionWorld = CombatAPI.CollisionWorld.new(world)
+local topologyCatalog = CombatAPI.CollisionTopologyCatalog.new()
+topologyCatalog:Register("game.hitbox", 1, function(saved, owner)
+    assert(saved.Shape == "Box")
+    return CombatAPI.Hitbox.new({
+        Id = saved.Id,
+        Owner = owner,
+        Shape = "Box",
+        Size = Vector3.new(saved.Size[1], saved.Size[2], saved.Size[3]),
+        Position = Vector3.new(0, 0, 0),
+        Enabled = saved.Enabled,
+        Priority = saved.PriorityOverride,
+        ClashGroup = saved.ClashGroup,
+        Damage = saved.Damage,
+        Hitstun = saved.Hitstun,
+        HitPolicy = saved.HitPolicy,
+        HitScope = saved.HitScope,
+        TopologyDefinitionId = "game.hitbox",
+        TopologyDefinitionVersion = 1,
+    })
+end)
+topologyCatalog:Seal()
+collisionWorld:SetTopologyCatalog(topologyCatalog)
+```
+
 `world:GetCombatStateSchema()` includes the combat pipeline, hitstop, combo,
 juggle, and cancel resolver providers by default. Collision-derived resolvers
 are captured through the attached `CollisionWorld` participant. Additional
@@ -36,6 +69,9 @@ stable ID after restoration; references held before restore are stale.
 a snapshot, or hashes a freshly captured state when no snapshot is supplied.
 `world:CompareCombatStates(left, right)` performs canonical detailed comparison
 and returns `Equal`, `LeftHash`, and `RightHash`.
+After restore, reacquire collision regions by stable ID from
+`collisionWorld:GetHitboxes()` or `collisionWorld:GetHurtboxes()`; the returned
+lists are sorted by region ID and the objects may have been reconstructed.
 `world:GetDiagnostics().ForbiddenOperations` records rejected mutating
 operations attempted during rollback/replay.
 `world:AssertDeterministicOperation(operation, details)` and
@@ -191,11 +227,19 @@ CombatAPI.UnregisterPlugin(world, id)
 
 The module exports `APIContext`, `EventTypes`, `APIResult`, `APIError`, `Plugin`,
 `PluginProfile`, `PluginState`, `CombatActionProfiles`, `CombatActionCatalog`,
-`ReplayRecording`, `Attack`, `AttackInstance`, `AttackCatalog`, `CollisionWorld`,
-`Hitbox`, `Hurtbox`, and `OffensiveProperties`. The profiles expose definition-only
+`ReplayRecording`, `Attack`, `AttackInstance`, `AttackCatalog`,
+`CollisionTopologyCatalog`, `CollisionWorld`, `Hitbox`, `Hurtbox`, and
+`OffensiveProperties`. `CollisionWorld:GetHitboxes()` and `GetHurtboxes()`
+return sorted region lists for inspection/reacquisition. `Hitbox.new()` and
+`Hurtbox.new()` may omit `Id`; `CollisionWorld:RegisterHitbox()` and
+`RegisterHurtbox()` assign one and return the registered region. The profiles expose definition-only
 `Melee()`, `Projectile()`, and `AreaOfEffect()` examples for the shared action
 pipeline. `CombatAPITypes.lua` is a sibling type-only module; import its types
 with `type CombatTypes = require(ReplicatedStorage.Shared.CombatAPITypes)`.
+The facade also exports the `CombatAPI.API` type; event modules and
+`OffensiveProperties` provide type aliases for their public values. Official
+event names are listed by `CombatAPITypes.EventType`. `HitConfirmedPayload` and
+`DamageAppliedPayload` include the optional `CustomData` value.
 
 A complete consumer-side example using only exported constructors is available
 at [examples/CustomDataConsumer.server.lua](examples/CustomDataConsumer.server.lua).
@@ -242,7 +286,7 @@ Some accessors return `nil` before an optional pipeline is supplied. In particul
 
 `world:GetCombatAPI()` and `world:GetAPIContext()` return the same World-owned `APIContext`. It exposes guarded entity operations (`GetEntity`, `CreateEntity`, `DestroyEntity`), event access/subscription, system lookup (`GetSystem`, `HasSystem`, `HasFeature`), named resolver getters, and Plugin lifecycle convenience methods. Methods return `APIResult` where implemented; a failed result includes an `APIError`.
 
-`APIResult` fields are `Success`, `Value`, and `Error`. `APIError` fields are `Code`, `Message`, `System`, `Frame`, and `Context`. Expected validation/operation failures are results; malformed constructors and programmer contract violations may still raise assertions.
+`APIResult` fields are `Success`, `Value`, and `Error`; its type is discriminated by `Success`, so a failed result always has an `APIError`. `APIError` fields are `Code`, `Message`, `System`, `Frame`, and `Context`. Plugin resolver failures map to the stable code categories in [PUBLIC_API.md](PUBLIC_API.md); `APIError.fromResolverResult()` performs that mapping and preserves the resolver code/details in context. Expected validation/operation failures are results; malformed constructors and programmer contract violations may still raise assertions.
 
 ## Public vs internal
 

@@ -36,6 +36,47 @@ check(not pcall(function()
 	APIError.new(APIError.Code.InvalidArgument, "failure", "Test", math.huge)
 end), "APIError must reject non-finite frames")
 
+for _, failure in ipairs({
+	{ Code = "WorldDestroyed", Expected = "Destroyed" },
+	{ Code = "InvalidPlugin", Expected = "InvalidArgument" },
+	{ Code = "InvalidCapabilityId", Expected = "InvalidArgument" },
+	{ Code = "InvalidCapabilityVersion", Expected = "InvalidArgument" },
+	{ Code = "PluginAlreadyOwned", Expected = "AlreadyExists" },
+	{ Code = "DuplicatePlugin", Expected = "AlreadyExists" },
+	{ Code = "CapabilityConflict", Expected = "AlreadyExists" },
+	{ Code = "PluginNotFound", Expected = "NotFound" },
+	{ Code = "CapabilityNotFound", Expected = "NotFound" },
+	{ Code = "DependencyMissing", Expected = "NotFound" },
+	{ Code = "PluginDisabled", Expected = "Disabled" },
+	{ Code = "PermissionDenied", Expected = "PermissionDenied" },
+	{ Code = "CapabilityNotDeclared", Expected = "PermissionDenied" },
+	{ Code = "InitializationFailed", Expected = "InternalError" },
+	{ Code = "PluginRuntimeFailed", Expected = "InternalError" },
+	{ Code = "StopFailed", Expected = "InternalError" },
+	{ Code = "ActiveDependents", Expected = "InvalidOperation" },
+	{ Code = "PluginActive", Expected = "InvalidOperation" },
+	{ Code = "InvalidLifecycleState", Expected = "InvalidOperation" },
+	{ Code = "DependencyVersionMismatch", Expected = "InvalidOperation" },
+	{ Code = "DependencyCycle", Expected = "InvalidOperation" },
+	{ Code = "DependencyFailed", Expected = "InvalidOperation" },
+	{ Code = "UnmappedResolverFailure", Expected = "InvalidOperation" },
+}) do
+	local mapped = APIError.fromResolverResult({
+		Success = false,
+		Code = failure.Code,
+		PluginId = "test-plugin",
+		Details = { DependencyId = "missing-dependency" },
+	}, "Plugins", 8)
+	check(mapped.Code == failure.Expected, "resolver failure maps to APIError.Code: " .. failure.Code)
+	check(mapped.Context.ResolverCode == failure.Code
+		and mapped.Context.PluginId == "test-plugin"
+		and mapped.Context.DependencyId == "missing-dependency",
+		"resolver failure details remain available in APIError.Context")
+end
+check(not pcall(function()
+	APIError.fromResolverResult({ Success = true, Code = "Started" })
+end), "resolver error mapping requires a failed result")
+
 local success = APIResult.new(true, { Value = 5 })
 check(success.Success and success.Value.Value == 5 and success.Error == nil)
 check(APIResult.is(success), "success result must satisfy the public result contract")

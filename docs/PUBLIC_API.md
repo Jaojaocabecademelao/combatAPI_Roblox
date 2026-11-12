@@ -1,6 +1,6 @@
 # Public API boundary
 
-This document defines the compatibility boundary for the CombatAPI `0.2.x` development line.
+This document defines the compatibility boundary for the CombatAPI `0.3.x` development line.
 
 ## Stable public surface
 
@@ -9,10 +9,11 @@ The following entry points are public and covered by the package's compatibility
 - `CombatAPI.CreateWorld`, `GetContext`, `GetAPIContext`, and `IsWorld`.
 - `CombatAPI.APIContext` methods documented in `API.md`, including entity operations, events, feature discovery, and named system lookup.
 - `CombatAPI.APIResult`, `APIError`, `EventTypes`, plugin contracts, action definitions/catalogs, replay recordings, and the exported constructors listed below.
-- `CombatAPI.Simulation`, `Attack`, `AttackInstance`, `AttackCatalog`, `CollisionWorld`, `Hitbox`, `Hurtbox`, and `OffensiveProperties`.
+- `CombatAPI.Simulation`, `Attack`, `AttackInstance`, `AttackCatalog`, `CollisionTopologyCatalog`, `CollisionWorld`, `Hitbox`, `Hurtbox`, and `OffensiveProperties`.
 - World methods explicitly listed in the World accessors section of `API.md`.
+- Luau type contracts for the facade, APIContext, events, errors/results, attack properties, collision, rollback, and simulation values are provided by `CombatAPITypes.lua` and re-exported by their public modules. These type exports describe supported consumer shapes; internal resolver objects remain outside the stable boundary or intentionally opaque until their contracts are completed.
 
-The public constructor exports are provided so a consumer can create a World and Simulation, build an attack definition, create per-execution overrides, register collision regions, and capture/restore combat state without requiring modules from `src/shared/Combat` or `src/shared/Simulation` directly.
+The public constructor exports are provided so a consumer can create a World and Simulation, build an attack definition, create per-execution overrides, register collision regions and their versioned rollback factories, and capture/restore combat state without requiring modules from `src/shared/Combat` or `src/shared/Simulation` directly.
 
 ## Advanced resolver access
 
@@ -34,7 +35,7 @@ Modules under `src/shared/Core`, `src/shared/Combat`, `src/shared/Simulation`, `
 ## Versioning policy
 
 - `CombatAPI.Version` remains the integer API generation for compatibility with existing code.
-- `CombatAPI.SemVer` is the package release version. The current development baseline is `0.2.0`.
+- `CombatAPI.SemVer` is the package release version. The current development baseline is `0.3.0`.
 - **MAJOR**: remove/rename a public member, change its meaning incompatibly, or change a serialized contract without a compatible migration.
 - **MINOR**: add a backward-compatible public member, capability, or optional field.
 - **PATCH**: backward-compatible bug fixes and documentation corrections.
@@ -50,6 +51,6 @@ Public operations that return `APIResult` use:
 - `Value`: the successful value, or operation-specific failure value;
 - `Error`: `nil` on success, otherwise an immutable `APIError` with `Code`, `Message`, `System`, optional `Frame`, and optional `Context`.
 
-`APIError.Code` values are stable identifiers, not user-facing prose. Consumers should branch on `Code`, not `Message`. Messages may become more descriptive between compatible releases. Resolver-specific result codes remain distinct from `APIError.Code`; plugin facade methods currently map them to `InvalidOperation` and preserve the original value in `Error.Context.ResolverCode.
+`APIError.Code` values are stable identifiers, not user-facing prose. Consumers should branch on `Code`, not `Message`. Messages may become more descriptive between compatible releases. Plugin resolver failures map to the stable API categories: missing plugins/dependencies to `NotFound`, duplicate or conflicting registrations to `AlreadyExists`, disabled plugins to `Disabled`, invalid plugin data to `InvalidArgument`, permission failures to `PermissionDenied`, destroyed Worlds to `Destroyed`, initialization/runtime/stop failures to `InternalError`, and other lifecycle/dependency failures to `InvalidOperation`. The original resolver code remains available in `Error.Context.ResolverCode`; dependency and resolver details are preserved in that context. Unrecognized resolver codes map to `InvalidOperation`.
 
-The recognized `APIError.Code` values are `InvalidArgument`, `InvalidEntity`, `InvalidOperation`, `NotFound`, `AlreadyExists`, `NotInitialized`, `Disabled`, `PermissionDenied`, `InternalError`, and `Destroyed`. `APIError.isCode(value)` can be used to check a code before branching on it. `APIError` and `APIResult` records are shallow-frozen; the optional `Context` table is caller-provided and must be treated as read-only by consumers.
+The recognized `APIError.Code` values are `InvalidArgument`, `InvalidEntity`, `InvalidOperation`, `NotFound`, `AlreadyExists`, `NotInitialized`, `Disabled`, `PermissionDenied`, `InternalError`, and `Destroyed`. `APIError.isCode(value)` can be used to check a code before branching on it. `APIError` and `APIResult` records are shallow-frozen; `Context` is not deep-frozen and must be treated as read-only by consumers. `APIError.fromResolverResult()` copies resolver details into a new context table.
