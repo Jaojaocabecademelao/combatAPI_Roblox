@@ -39,7 +39,7 @@ Modules under `src/shared/Core`, `src/shared/Combat`, `src/shared/Simulation`, `
 ## Versioning policy
 
 - `CombatAPI.Version` remains the integer API generation for compatibility with existing code.
-- `CombatAPI.SemVer` is the package release version. The current development baseline is `0.2.0`.
+- `CombatAPI.SemVer` is the package release version. The current development baseline is `0.3.0`.
 - **MAJOR**: remove/rename a public member, change its meaning incompatibly, or change a serialized contract without a compatible migration.
 - **MINOR**: add a backward-compatible public member, capability, or optional field.
 - **PATCH**: backward-compatible bug fixes and documentation corrections.

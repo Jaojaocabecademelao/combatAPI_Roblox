@@ -92,6 +92,27 @@ function Recording:Capture()
 	return Serializer.CloneSerializable(snapshot)
 end
 
+function Recording:GetFrame(frame)
+	if not validFrame(frame) then return nil, "InvalidFrame" end
+	local index = frame - self.Metadata.StartFrame
+	if index < 1 or index > #self.Frames then return nil, "FrameNotFound" end
+	return Serializer.CloneSerializable(self.Frames[index])
+end
+
+function Recording:GetFrameRange(firstFrame, lastFrame)
+	if not validFrame(firstFrame) or not validFrame(lastFrame) or firstFrame > lastFrame then
+		return nil, "InvalidFrameRange"
+	end
+	local firstIndex = firstFrame - self.Metadata.StartFrame
+	local lastIndex = lastFrame - self.Metadata.StartFrame
+	if firstIndex < 1 or lastIndex > #self.Frames then return nil, "FrameNotFound" end
+	local frames = {}
+	for index = firstIndex, lastIndex do
+		table.insert(frames, Serializer.CloneSerializable(self.Frames[index]))
+	end
+	return frames
+end
+
 function Recording.FromSnapshot(snapshot, migrations)
 	if type(snapshot) ~= "table" or getmetatable(snapshot) ~= nil then
 		return nil, "InvalidReplayRecording"
@@ -162,6 +183,8 @@ function Recording:FindFirstDivergence(other)
 			Reason = "InitialStateMismatch",
 			ExpectedHash = nil,
 			ActualHash = nil,
+			ExpectedState = Serializer.CloneSerializable(self.InitialState),
+			ActualState = Serializer.CloneSerializable(other.InitialState),
 		}
 	end
 	local common = math.min(#self.Frames, #other.Frames)
@@ -172,6 +195,8 @@ function Recording:FindFirstDivergence(other)
 				Reason = "InputMismatch",
 				ExpectedHash = expected.StateHash,
 				ActualHash = actual.StateHash,
+				ExpectedInputs = Serializer.CloneSerializable(expected.Inputs),
+				ActualInputs = Serializer.CloneSerializable(actual.Inputs),
 			}
 		end
 		if Serializer.Serialize(expected.ExternalFacts) ~= Serializer.Serialize(actual.ExternalFacts) then
@@ -179,6 +204,10 @@ function Recording:FindFirstDivergence(other)
 				Reason = "ExternalFactsMismatch",
 				ExpectedHash = expected.StateHash,
 				ActualHash = actual.StateHash,
+				ExpectedExternalFacts = expected.ExternalFacts ~= nil
+					and Serializer.CloneSerializable(expected.ExternalFacts) or nil,
+				ActualExternalFacts = actual.ExternalFacts ~= nil
+					and Serializer.CloneSerializable(actual.ExternalFacts) or nil,
 			}
 		end
 		if expected.StateHash ~= actual.StateHash then
@@ -195,6 +224,10 @@ function Recording:FindFirstDivergence(other)
 			Reason = "MissingFrame",
 			ExpectedHash = self.Frames[common + 1] and self.Frames[common + 1].StateHash or nil,
 			ActualHash = other.Frames[common + 1] and other.Frames[common + 1].StateHash or nil,
+			ExpectedFrame = self.Frames[common + 1]
+				and Serializer.CloneSerializable(self.Frames[common + 1]) or nil,
+			ActualFrame = other.Frames[common + 1]
+				and Serializer.CloneSerializable(other.Frames[common + 1]) or nil,
 		}
 	end
 	return nil

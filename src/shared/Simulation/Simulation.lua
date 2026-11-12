@@ -80,6 +80,8 @@ function Simulation.new(world, options)
 	self.GameplayActionEventHandlers = {}
 	self.DeterminismGuard = DeterminismGuard.new(function()
 		return self.ExecutionContext
+	end, function()
+		return self.GameTime:GetFrame()
 	end)
 	self.Scheduler.IsReplay = function()
 		return self.ExecutionContext ~= "Normal"

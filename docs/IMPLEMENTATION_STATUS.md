@@ -288,6 +288,21 @@ Verificação fora do Studio (harness Luau com stubs de `Vector3`/`CFrame`): 59 
 - A cobertura tipada da `Simulation` foi ampliada para validar opções de
   configuração, captura/restauração do estado e hash. Build Rojo e análise
   Luau precisam ser repetidos após essas alterações.
+
+
+## Etapa D — diagnóstico de determinismo e inspeção de replay (12 nov 2026)
+
+- `DeterminismGuard` agora registra sequência monotônica e frame da simulação
+  em cada violação explícita; limpar a lista não reinicia a sequência.
+- `ReplayRecording:GetFrame` e `GetFrameRange` devolvem cópias defensivas, e
+  divergências de estado inicial, inputs, fatos por frame e frames ausentes
+  incluem dados esperado/observado quando disponíveis.
+- O formato de replay continua na versão 1. Os testes de determinismo, replay
+  e contratos tipados cobrem os novos resultados; a validação Rojo, análise
+  do build Rojo e `git diff --check` passaram. O `luau-lsp` não pôde ser
+  disponibilizado porque `aftman install` falhou ao atualizar o alias do Rojo,
+  que está bloqueado por outro processo; a execução Studio deste incremento
+  ainda está pendente.
 - Atualização posterior: o usuário confirmou que o smoke test terminou sem
   erros. A pendência de execução do smoke está encerrada; não foram fornecidos
   detalhes adicionais sobre número de clientes ou métricas.

@@ -5,7 +5,7 @@
 `src/shared/CombatAPI.lua` returns a frozen module table. Current methods and exported types:
 
 `CombatAPI.Version` remains the integer API generation (`1`) for existing
-consumers. `CombatAPI.SemVer` reports the package release version (`0.2.0`),
+consumers. `CombatAPI.SemVer` reports the package release version (`0.3.0`),
 while `CombatAPI.Contracts` exposes independently versioned serialized
 contracts, including the attack/action catalog manifests and combat state
 schema.
@@ -29,7 +29,11 @@ and returns `Equal`, `LeftHash`, and `RightHash`.
 operations attempted during rollback/replay.
 `world:AssertDeterministicOperation(operation, details)` and
 `world:GetDeterminismViolations()` expose the simulation determinism guard for
-plugin and adapter code.
+plugin and adapter code. Each violation includes a monotonic `Sequence` and
+the current simulation `Frame`, in addition to its operation, execution
+context, and optional details. `ClearViolations()` clears stored records
+without resetting the sequence. This is explicit instrumentation; it does not
+intercept arbitrary Roblox API calls.
 Use `world:RegisterGameplayEventHandler` and
 `world:ScheduleGameplayEvent` for serializable gameplay timers.
 `world:GetGameplayScheduler()` returns the data-only scheduler; the legacy
@@ -135,10 +139,16 @@ repair missing or incompatible fields.
 state, optional external-fact journal, contiguous frame inputs, optional
 per-frame facts, and a caller-provided state hash for each frame. Load it with
 `ReplayRecording.FromSnapshot(snapshot, migrations)`; old versions require
-explicit one-version migration callbacks. `FindFirstDivergence(other)` reports
-the first initial-state, input, per-frame fact, or state-hash mismatch. The
-host still owns simulation execution, hash calculation, retention/privacy
-policy, and loading the external-fact journal into the World before replay.
+explicit one-version migration callbacks. `GetFrame(frame)` returns a
+defensive copy of one recorded frame; `GetFrameRange(first, last)` returns an
+inclusive dense range, and both return an explicit reason when the requested
+data is unavailable. `FindFirstDivergence(other)` reports the first
+initial-state, input, per-frame fact, or state-hash mismatch. Its detail
+includes defensive copies of differing initial state, inputs, per-frame facts,
+or available frame records, along with hashes when applicable. It does not
+store full state snapshots per frame. The host still owns simulation
+execution, hash calculation, retention/privacy policy, and loading the
+external-fact journal into the World before replay.
 
 Statuses may declare `Tags` and finite numeric `Modifiers`. A
 `StatusContainer` exposes `HasTag`, `GetModifier`, and `RemoveByTag`; modifiers

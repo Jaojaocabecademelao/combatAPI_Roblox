@@ -598,6 +598,46 @@ Logs detalhados também precisam ser opcionais ou limitados em produção. Ativa
 diagnóstico não deveria mudar a lógica do combate nem alterar a ordem de
 execução.
 
+### Primeiro incremento: diagnóstico por frame e consulta de replay
+
+Este incremento deve tornar os diagnósticos existentes mais acionáveis sem
+interceptar operações do Roblox nem alterar a execução:
+
+- Cada violação explícita do `DeterminismGuard` recebe um `Sequence` crescente
+  durante a vida do guard e o `Frame` atual da simulação, além de `Operation`,
+  `Context` e `Details`. `ClearViolations()` apaga os registros, mas não
+  reinicia a sequência.
+- `ReplayRecording:GetFrame(frame)` retorna uma cópia serializável do registro
+  daquele frame. `GetFrameRange(firstFrame, lastFrame)` retorna cópias em uma
+  lista densa, com limites inclusivos. Ambos recusam frames indisponíveis com
+  códigos explícitos e nunca expõem tabelas internas.
+- `FindFirstDivergence` continua retornando o primeiro frame e o motivo; em
+  divergências de input, estado inicial ou fatos externos por frame, o detalhe
+  inclui cópias dos valores esperado e observado para que um teste possa
+  reproduzir o caso. Uma divergência somente de hash continua reportando os
+  hashes; incompatibilidade do journal externo global continua sem frame
+  associado. Não há snapshots completos por frame nesta mudança.
+- O formato serializado do replay permanece na versão atual. Consultar dados
+  ou habilitar esses diagnósticos não altera o estado de gameplay.
+
+Pseudocódigo de inspeção:
+
+```lua
+local frame, reason = recording:GetFrame(frameNumber)
+if frame == nil then
+    error(("Replay frame unavailable: %s"):format(reason))
+end
+
+local frames, rangeReason = recording:GetFrameRange(firstFrame, lastFrame)
+local divergenceFrame, detail = expected:FindFirstDivergence(actual)
+```
+
+O teste de aceite deve verificar sequência/frame/contexto das violações,
+inclusive após limpar a lista, independência das cópias retornadas e valores
+esperado/observado da primeira divergência. Comparar hashes continua sendo
+responsabilidade do host; o guard continua sendo instrumentação explícita,
+não uma interceptação global de relógio, aleatoriedade ou consultas externas.
+
 ## 12. Medir desempenho e declarar limites
 
 Uma API pode estar correta em pequenos testes e ainda custar demais quando há

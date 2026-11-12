@@ -30,6 +30,27 @@ return function()
 	}
 	local simulation: CombatAPITypes.Simulation = publicAPI.Simulation.new(world, simulationOptions)
 	check(simulation:GetWorld() == world, "typed Simulation constructor associates with the World")
+	local determinismGuard: CombatAPITypes.DeterminismGuard = simulation:GetDeterminismGuard()
+	simulation:SetExecutionContext("Replay")
+	local deterministicOperationAllowed, determinismViolation = determinismGuard:Check("WallClock")
+	check(not deterministicOperationAllowed and determinismViolation ~= nil
+		and determinismViolation.Frame == 0,
+		"typed determinism diagnostics expose the simulation frame")
+	simulation:SetExecutionContext("Normal")
+	local violations: { CombatAPITypes.DeterminismViolation } = world:GetDeterminismViolations()
+	check(#violations == 1, "typed World exposes determinism violations")
+
+	local replay: CombatAPITypes.ReplayRecording = publicAPI.ReplayRecording.new({
+		Metadata = { ContentFingerprint = "types-contract", StartFrame = 0 },
+		InitialState = { Frame = 0 },
+	})
+	replay:AppendFrame(1, { Input = "Light" }, "types-state-1")
+	local replayFrame: CombatAPITypes.ReplayFrame? = replay:GetFrame(1)
+	local replayRange: { CombatAPITypes.ReplayFrame }? = replay:GetFrameRange(1, 1)
+	check(replayFrame ~= nil and replayFrame.StateHash == "types-state-1"
+		and replayRange ~= nil and #replayRange == 1,
+		"typed ReplayRecording exposes defensive frame inspection")
+
 	local actionEventType = "types.contract.action-effect"
 	local actionHandler: (CombatAPITypes.ActionGameplayEvent) -> () = function(event)
 		check(event.Type == actionEventType and event.Parameters ~= nil,

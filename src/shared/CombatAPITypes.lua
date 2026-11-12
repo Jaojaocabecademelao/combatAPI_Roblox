@@ -260,6 +260,7 @@ export type World = {
 	GetEntity: (self: World, id: EntityId) -> any?,
 	DestroyEntity: (self: World, entityOrId: any) -> boolean,
 	GetCombatAPI: (self: World) -> any,
+	GetDeterminismViolations: (self: World) -> { DeterminismViolation },
 	GetSimulation: (self: World) -> Simulation?,
 	SetSimulation: (self: World, simulation: Simulation) -> Simulation,
 	RegisterGameplayEventHandler: (self: World, typeId: string, handler: (ScheduledGameplayEvent) -> ()) -> (boolean, string?),
@@ -298,6 +299,62 @@ export type SimulationOptions = {
 }
 
 export type SimulationExecutionContext = "Normal" | "Replay" | "Rollback"
+
+export type DeterminismViolation = {
+	Sequence: number,
+	Frame: number?,
+	Operation: string,
+	Context: SimulationExecutionContext,
+	Details: string?,
+}
+
+export type DeterminismGuard = {
+	Check: (self: DeterminismGuard, operation: string, details: any?) -> (boolean, DeterminismViolation?),
+	AssertAllowed: (self: DeterminismGuard, operation: string, details: any?) -> boolean,
+	GetContext: (self: DeterminismGuard) -> SimulationExecutionContext,
+	IsForbidden: (self: DeterminismGuard, operation: string) -> boolean,
+	GetViolations: (self: DeterminismGuard) -> { DeterminismViolation },
+	ClearViolations: (self: DeterminismGuard) -> (),
+}
+
+export type ReplayFrame = {
+	Frame: number,
+	Inputs: { [string]: any },
+	StateHash: string,
+	ExternalFacts: { [string]: any }?,
+}
+
+export type ReplayDivergence = {
+	Reason: string,
+	ExpectedHash: string?,
+	ActualHash: string?,
+	ExpectedState: { [string]: any }?,
+	ActualState: { [string]: any }?,
+	ExpectedInputs: { [string]: any }?,
+	ActualInputs: { [string]: any }?,
+	ExpectedExternalFacts: { [string]: any }?,
+	ActualExternalFacts: { [string]: any }?,
+	ExpectedFrame: ReplayFrame?,
+	ActualFrame: ReplayFrame?,
+}
+
+export type ReplayRecordingOptions = {
+	Metadata: { [string]: any },
+	InitialState: { [string]: any },
+	ExternalFacts: { [string]: any }?,
+}
+
+export type ReplayRecording = {
+	Metadata: { [string]: any },
+	InitialState: { [string]: any },
+	ExternalFacts: { [string]: any }?,
+	Frames: { ReplayFrame },
+	AppendFrame: (self: ReplayRecording, frame: number, inputs: { [string]: any }?, stateHash: string, externalFacts: { [string]: any }?) -> ReplayFrame,
+	Capture: (self: ReplayRecording) -> { [string]: any },
+	GetFrame: (self: ReplayRecording, frame: number) -> (ReplayFrame?, string?),
+	GetFrameRange: (self: ReplayRecording, firstFrame: number, lastFrame: number) -> ({ ReplayFrame }?, string?),
+	FindFirstDivergence: (self: ReplayRecording, other: ReplayRecording) -> (number?, string | ReplayDivergence?),
+}
 
 export type ScheduledGameplayEvent = {
 	Id: number,
@@ -347,7 +404,7 @@ export type Simulation = {
 	ScheduleGameplayEventAfter: (self: Simulation, delayFrames: number, typeId: string, ownerId: EntityId?, parameters: { [string]: any }?, intervalFrames: number?) -> (number?, string?),
 	GetGameplayScheduler: (self: Simulation) -> any,
 	GetLegacyScheduler: (self: Simulation) -> any,
-	GetDeterminismGuard: (self: Simulation) -> any,
+	GetDeterminismGuard: (self: Simulation) -> DeterminismGuard,
 	GetRNG: (self: Simulation) -> DeterministicRNG,
 	GetExecutionContext: (self: Simulation) -> SimulationExecutionContext,
 	AssertDeterministicOperation: (self: Simulation, operation: string, details: any?) -> boolean,
@@ -456,6 +513,12 @@ export type SimulationModule = {
 	new: (world: World, options: SimulationOptions?) -> Simulation,
 }
 
+export type ReplayRecordingModule = {
+	Version: number,
+	new: (options: ReplayRecordingOptions) -> ReplayRecording,
+	FromSnapshot: (snapshot: any, migrations: { [number]: (any) -> any }?) -> (ReplayRecording?, string?),
+}
+
 export type AttackModule = {
 	new: (options: AttackOptions?) -> Attack,
 }
@@ -557,7 +620,7 @@ export type CombatAPI = {
 	CombatActionProfiles: any,
 	CombatActionDefinition: CombatActionDefinitionModule,
 	CombatActionCatalog: any,
-	ReplayRecording: any,
+	ReplayRecording: ReplayRecordingModule,
 	RobloxRemoteEventAdapter: any,
 	Attack: AttackModule,
 	AttackInstance: AttackInstanceModule,

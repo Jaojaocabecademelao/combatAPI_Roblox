@@ -47,7 +47,7 @@ local CombatAPI = {
 	-- Version is retained as the numeric API generation for existing consumers.
 	Version = 1,
 	-- SemVer describes the package/API release independently from serialized contracts.
-	SemVer = "0.2.0",
+	SemVer = "0.3.0",
 	Contracts = table.freeze({
 		NetworkMessage = NetworkMessage.Version,
 		CombatActionDefinition = CombatActionDefinition.Version,

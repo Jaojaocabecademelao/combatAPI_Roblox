@@ -57,6 +57,8 @@ de teste com dois clientes.
 - `CombatReplayRecordingTest.lua` e `CombatDeterminismTest.lua`:
   infraestrutura geral de replay/determinismo. O consumidor deve garantir que
   overrides usados em gameplay derivem apenas de inputs e estado determinístico.
+  Os testes também verificam sequência/frame nas violações do guard, inspeção
+  defensiva de frames e os dados esperado/observado da primeira divergência.
 
 ## Benchmark
 

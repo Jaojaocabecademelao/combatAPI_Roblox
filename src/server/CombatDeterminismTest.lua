@@ -248,6 +248,17 @@ guardSimulation:SetExecutionContext("Replay")
 local allowed, violation = guard:Check("WallClock", "test read")
 check(not allowed and violation.Operation == "WallClock" and violation.Context == "Replay",
 	"Replay guard records a forbidden operation")
+check(violation.Sequence == 1 and violation.Frame == 0 and violation.Details == "test read",
+	"Replay diagnostics identify the violation order, simulation frame, and details")
+guardSimulation:Step()
+local _, nextViolation = guard:Check("WallClock", "next frame")
+check(nextViolation.Sequence == 2 and nextViolation.Frame == 1,
+	"Replay diagnostics advance sequence and frame as the simulation advances")
+guard:ClearViolations()
+check(#guard:GetViolations() == 0, "Clearing diagnostics removes recorded violations")
+local _, afterClearViolation = guard:Check("WallClock")
+check(afterClearViolation.Sequence == 3 and afterClearViolation.Frame == 1,
+	"Clearing diagnostics preserves the guard's monotonic sequence")
 local replayEvent, replayScheduleCode = guardSimulation:ScheduleEvent(1, "NotRegistered", 1, {})
 check(replayEvent == nil and replayScheduleCode == "InvalidExecutionContext",
 	"Simulation rejects data-event scheduling during legacy replay")

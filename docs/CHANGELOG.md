@@ -15,6 +15,9 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
   novamente seus frames após rollback.
 - `CombatActionCatalog` manifest v2 fixa eventos declarados e ainda aceita
   manifest v1 apenas para conteúdo sem eventos.
+- `DeterminismGuard` identifica violações explícitas com sequência monotônica
+  e frame da simulação; `ReplayRecording` oferece leitura defensiva de frames e
+  detalhes de valores na primeira divergência, sem alterar o formato salvo.
 - Contratos Luau explícitos para perfil, dependências, implementação, estado, contexto e capacidade de plugins; os métodos de registro e ciclo de vida agora retornam `APIResult<PluginResolverResult>` em vez de `any`, e `CombatAPI` exporta `PluginCapability` e `PluginContext` para o fluxo do plugin.
 - A superfície tipada de plugins agora inclui a vista de registry, assinaturas de callbacks de lifecycle/eventos e códigos de falha de capabilities.
 - `PluginContext:GetEventBus()` e `APIContext:GetEvents()` agora usam o contrato público tipado de `EventBus`, incluindo operações de inscrição, dispatch, consulta de erros e teardown.
@@ -67,6 +70,8 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 
 - O pacote avança para `0.2.0` em `CombatAPI.SemVer` e `wally.toml`, refletindo
   a adição compatível do construtor público e da timeline declarativa.
+- O pacote avança para `0.3.0` em `CombatAPI.SemVer` e `wally.toml`, adicionando
+  inspeção de replay e contexto por frame nos diagnósticos de determinismo.
 
 - Falhas de plugin retornadas por `CombatAPI.RegisterPlugin`, `StartPlugin`, `StopPlugin`, `UnregisterPlugin`, `EnablePlugin` e `DisablePlugin`, e pelos métodos equivalentes de `APIContext`, passam a usar um `APIError.Code` específico (`NotFound`, `AlreadyExists`, `InvalidArgument`, `PermissionDenied`, `Disabled`, `Destroyed`, `InternalError` ou `InvalidOperation`) em vez de sempre `InvalidOperation`. O código original do resolver continua em `Error.Context.ResolverCode` e `Error.Message` mantém o mesmo valor. A tabela completa está em [`PUBLIC_API.md`](PUBLIC_API.md).
 - A conversão de resultado de resolver em `APIError` passa a viver em um único módulo, `Events/ResolverErrorMap`, usado por `CombatAPI` e `APIContext` (antes havia duas cópias).
