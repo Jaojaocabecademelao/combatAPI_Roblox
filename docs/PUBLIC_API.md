@@ -57,17 +57,16 @@ Public operations that return `APIResult` use:
 
 The recognized `APIError.Code` values are `InvalidArgument`, `InvalidEntity`, `InvalidOperation`, `NotFound`, `AlreadyExists`, `NotInitialized`, `Disabled`, `PermissionDenied`, `InternalError`, and `Destroyed`. `APIError.isCode(value)` can be used to check a code before branching on it. `APIError` and `APIResult` records are shallow-frozen; the optional `Context` table is caller-provided and must be treated as read-only by consumers.
 
-### Plugin result mapping
+### Plugin resolver result mapping
 
 | `APIError.Code` | Resolver result codes |
 |---|---|
-| `NotFound` | `PluginNotFound`, `CapabilityNotFound`, `DependencyMissing` |
-| `AlreadyExists` | `DuplicatePlugin`, `PluginAlreadyOwned`, `CapabilityConflict` |
-| `InvalidArgument` | `InvalidPlugin`, `InvalidCapabilityId`, `InvalidCapabilityVersion` |
-| `PermissionDenied` | `PermissionDenied`, `CapabilityNotDeclared` |
+| `NotFound` | `PluginNotFound`, `DependencyMissing` |
+| `AlreadyExists` | `DuplicatePlugin`, `PluginAlreadyOwned` |
+| `InvalidArgument` | `InvalidPlugin` |
 | `Disabled` | `PluginDisabled` |
 | `Destroyed` | `WorldDestroyed` |
 | `InternalError` | `InitializationFailed`, `PluginRuntimeFailed`, `StopFailed` (an exception escaped plugin-owned code) |
 | `InvalidOperation` | `InvalidLifecycleState`, `PluginActive`, `ActiveDependents`, `DependencyCycle`, `DependencyVersionMismatch`, `DependencyFailed`, and any resolver code not listed here |
 
-Capability codes are returned by plugin contexts as `(value, code)` pairs rather than as `APIResult`; they are included so every known resolver code has a defined mapping. A resolver code added in a future release maps to `InvalidOperation` until it is listed here.
+This mapping applies only to failed `PluginResolver` lifecycle/registration results wrapped in `APIResult`. Plugin-context methods have a separate return contract: `RegisterCapability` returns `(capability, code)`, with `InvalidContext`, `InvalidCapabilityId`, `InvalidCapabilityVersion`, `CapabilityNotDeclared`, or `CapabilityConflict`; `Register` can also return `UnsupportedExtensionKind`. These context codes are not `APIError.Code` values and are not passed through this mapping. A new resolver result code maps to `InvalidOperation` until listed here.

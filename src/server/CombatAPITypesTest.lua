@@ -102,7 +102,7 @@ return function()
 
 	local pluginContext: CombatAPITypes.PluginContext? = plugin.Context
 	assert(pluginContext ~= nil, "typed plugin lifecycle exposes a PluginContext")
-	local registeredCapability, registerCapabilityError =
+	local registeredCapability: CombatAPITypes.PluginCapability?, registerCapabilityError: CombatAPITypes.PluginContextErrorCode? =
 		pluginContext:RegisterCapability("types.contract.capability", {
 		Ping = function() return "pong" end,
 	}, "1.0.0")
@@ -120,15 +120,15 @@ return function()
 	local pluginEventBus: CombatAPITypes.EventBus? = pluginContext:GetEventBus()
 	check(pluginEventBus ~= nil and pluginEventBus == context:GetEvents(),
 		"typed plugin context exposes the World's shared EventBus")
-	local duplicateCapability, duplicateCapabilityError =
+	local duplicateCapability: CombatAPITypes.PluginCapability?, duplicateCapabilityError: CombatAPITypes.PluginContextErrorCode? =
 		pluginContext:RegisterCapability("types.contract.capability", {})
 	check(duplicateCapability == nil and duplicateCapabilityError == "CapabilityConflict",
 		"duplicate capability registration returns its typed error code")
-	local undeclaredCapability, undeclaredCapabilityError =
+	local undeclaredCapability: CombatAPITypes.PluginCapability?, undeclaredCapabilityError: CombatAPITypes.PluginContextErrorCode? =
 		pluginContext:RegisterCapability("types.contract.undeclared", {})
 	check(undeclaredCapability == nil and undeclaredCapabilityError == "CapabilityNotDeclared",
 		"undeclared capability registration returns its typed error code")
-	local unsupportedExtension, unsupportedExtensionError =
+	local unsupportedExtension: CombatAPITypes.PluginCapability?, unsupportedExtensionError: CombatAPITypes.PluginContextErrorCode? =
 		pluginContext:Register("Resolver", "types.contract.resolver", {})
 	check(unsupportedExtension == nil and unsupportedExtensionError == "UnsupportedExtensionKind",
 		"plugin context reports unsupported extension kinds explicitly")
@@ -147,7 +147,7 @@ return function()
 		"retained registry views become safe after their plugin context is invalidated")
 	context.Events:Dispatch("TypedPluginContract", {}, { ExecutionMode = "Normal" })
 	check(callbackCount == 1, "stopping the plugin disconnects its owned event subscription")
-	local lateCapability, lateCapabilityError =
+	local lateCapability: CombatAPITypes.PluginCapability?, lateCapabilityError: CombatAPITypes.PluginContextErrorCode? =
 		pluginContext:RegisterCapability("types.contract.capability", {})
 	check(lateCapability == nil and lateCapabilityError == "InvalidContext",
 		"invalidated PluginContext rejects capability registration with a typed error")

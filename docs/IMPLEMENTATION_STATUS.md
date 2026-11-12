@@ -290,3 +290,30 @@ Verificação fora do Studio (harness Luau com stubs de `Vector3`/`CFrame`): 59 
 - Atualização posterior: o usuário confirmou que o smoke test terminou sem
   erros. A pendência de execução do smoke está encerrada; não foram fornecidos
   detalhes adicionais sobre número de clientes ou métricas.
+
+
+## Atualização — execução recente no Studio (12 nov 2026)
+
+- O usuário confirmou que a suíte executada após a correção do mapa de erros
+  passou. Não foram informados contagem nem logs detalhados.
+- O contrato de mapeamento foi delimitado aos resultados do `PluginResolver`
+  convertidos em `APIResult`. Os códigos retornados em pares por
+  `PluginContext:RegisterCapability` permanecem parte de um contrato separado;
+  testes e documentação agora verificam essa distinção.
+- A atualização seguinte removeu `CapabilityNotFound` e `PermissionDenied` do
+  tipo `PluginContextErrorCode`, pois não são retornados pelos métodos públicos
+  de `PluginContext`. O build Rojo passou após essa alteração; análise Luau e
+  execução da suíte no Studio ainda são necessárias para validar o novo tipo.
+
+## Continuação — tipagem estrita do PluginContext (12 nov 2026)
+
+- `PluginContext.lua` agora usa `--!strict`, com tipos explícitos para o estado
+  do contexto, recursos de teardown, vista do registry, callbacks e fronteira
+  com o resolver.
+- A implementação mantém a invalidação e a liberação de inscrições/capabilities;
+  um contexto válido sem resolver ou plugin agora falha explicitamente como
+  violação de invariante.
+- O build Rojo e `git diff --check` passaram. O teste de Studio informado pelo
+  usuário antecede esta migração, e o analisador `luau-lsp` não pôde ser
+  instalado nesta máquina devido a um bloqueio ao atualizar o alias do Rojo.
+  Análise Luau e suíte Studio continuam pendentes para este lote.

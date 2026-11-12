@@ -11,24 +11,16 @@ local ResolverErrorMap = {}
 local FALLBACK: APIError.Code = "InvalidOperation"
 
 local codes: { [string]: APIError.Code } = {
-	-- A referenced plugin, capability or dependency does not exist.
+	-- A referenced plugin or dependency does not exist.
 	PluginNotFound = "NotFound",
-	CapabilityNotFound = "NotFound",
 	DependencyMissing = "NotFound",
 
 	-- Duplicate registration or ownership conflict.
 	DuplicatePlugin = "AlreadyExists",
 	PluginAlreadyOwned = "AlreadyExists",
-	CapabilityConflict = "AlreadyExists",
 
 	-- Malformed input.
 	InvalidPlugin = "InvalidArgument",
-	InvalidCapabilityId = "InvalidArgument",
-	InvalidCapabilityVersion = "InvalidArgument",
-
-	-- The caller is not allowed to perform the operation.
-	PermissionDenied = "PermissionDenied",
-	CapabilityNotDeclared = "PermissionDenied",
 
 	-- Target state.
 	PluginDisabled = "Disabled",

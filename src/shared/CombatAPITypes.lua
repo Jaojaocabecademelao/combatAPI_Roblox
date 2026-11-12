@@ -199,8 +199,6 @@ export type PluginContextErrorCode =
 	| "InvalidCapabilityVersion"
 	| "CapabilityNotDeclared"
 	| "CapabilityConflict"
-	| "CapabilityNotFound"
-	| "PermissionDenied"
 	| "UnsupportedExtensionKind"
 
 export type PluginContext = {

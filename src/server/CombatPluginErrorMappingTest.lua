@@ -25,6 +25,13 @@ for resolverCode, apiCode in pairs(ResolverErrorMap.Codes) do
 	check(APIError.isCode(apiCode), "Resolver code " .. resolverCode .. " must map to a recognized APIError.Code")
 end
 check(table.isfrozen(ResolverErrorMap.Codes), "The mapping table must be immutable")
+check(ResolverErrorMap.Codes.CapabilityConflict == nil
+	and ResolverErrorMap.Codes.InvalidCapabilityId == nil
+	and ResolverErrorMap.Codes.InvalidCapabilityVersion == nil
+	and ResolverErrorMap.Codes.CapabilityNotDeclared == nil
+	and ResolverErrorMap.Codes.CapabilityNotFound == nil
+	and ResolverErrorMap.Codes.PermissionDenied == nil,
+	"Capability-management codes outside PluginResolver results must not be mapped as API errors")
 check(ResolverErrorMap.codeFor("FutureResolverCode") == "InvalidOperation"
 	and ResolverErrorMap.codeFor(nil) == "InvalidOperation"
 	and ResolverErrorMap.codeFor(42) == "InvalidOperation",
