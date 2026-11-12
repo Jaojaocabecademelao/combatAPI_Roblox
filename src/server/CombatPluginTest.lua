@@ -4,6 +4,7 @@ local World=require(Shared.Core.World)
 local CombatAPI=require(Shared.CombatAPI)
 local Plugin=require(Shared.Plugins.Plugin)
 local Profile=require(Shared.Plugins.PluginProfile)
+local PluginVersion=require(Shared.Plugins.PluginVersion)
 local State=require(Shared.Plugins.PluginState)
 local Event=require(Shared.Plugins.PluginEvent)
 
@@ -22,6 +23,24 @@ local function fail(result, code) check(not result.Success and result.Code==code
 
 -- Definition validation and immutable metadata.
 do
+	check(PluginVersion.isValid("1.2.3") and not PluginVersion.isValid("1.2"),
+		"Shared plugin version validator accepts only numeric major.minor.patch")
+	check(PluginVersion.isAtLeast("100000000000000000000.0.0", "99999999999999999999.0.0"),
+		"Plugin version comparison remains exact beyond floating-point integer precision")
+	check(not PluginVersion.isAtLeast("99999999999999999999.0.0", "100000000000000000000.0.0"),
+		"Plugin version comparison does not round distinct large components to equality")
+	check(PluginVersion.isAtLeast("1.0.0", nil), "Missing minimum version accepts any valid plugin version")
+	check(not PluginVersion.isAtLeast("invalid", nil),
+		"Missing minimum does not make an invalid actual version valid")
+	check(not pcall(function()
+		CombatAPI.PluginCapability.new({ Id = "BadVersion", Version = "latest", OwnerPluginId = "Owner" })
+	end), "Capability constructor rejects non-numeric versions")
+	check(not pcall(function()
+		CombatAPI.PluginCapability.new({ Id = "FalseVersion", Version = false, OwnerPluginId = "Owner" })
+	end), "Capability constructor rejects non-string versions instead of defaulting them")
+	check(not pcall(function()
+		CombatAPI.PluginCapability.new({ Id = "MissingOwner", OwnerPluginId = "" })
+	end), "Capability constructor requires an owner")
 	check(not pcall(function() Profile.new({Name="Missing id",Version="1.0.0"}) end),"Missing ID is rejected")
 	check(not pcall(function() Profile.new({Id="bad id",Name="Bad",Version="1.0.0"}) end),"Invalid ID is rejected")
 	check(not pcall(function() Profile.new({Id="P",Version="1.0.0"}) end),"Missing name is rejected")
@@ -149,6 +168,14 @@ do
 	ok(r:ResolveDependencies("Optional"),"DependenciesResolved"); ok(r:StartPlugin("Optional"),"Started")
 	local incompatible=make("Incompatible",{Dependencies={{PluginId="Base",MinVersion="3.0.0"}}}); ok(r:RegisterPlugin(incompatible))
 	fail(r:StartPlugin("Incompatible"),"DependencyVersionMismatch")
+	local preciseBase=make("PreciseBase",{Version="99999999999999999999.0.0"})
+	local preciseDependent=make("PreciseDependent",{
+		Dependencies={{PluginId="PreciseBase",MinVersion="100000000000000000000.0.0"}},
+	})
+	ok(r:RegisterPlugin(preciseBase)); ok(r:RegisterPlugin(preciseDependent))
+	fail(r:StartPlugin(preciseDependent.Id),"DependencyVersionMismatch")
+	check(preciseBase.State==State.Registered and preciseDependent.State==State.Registered,
+		"Dependency resolver rejects an insufficient large version component exactly")
 	local b=make("CycleB",{Dependencies={"CycleC"}}); local c=make("CycleC",{Dependencies={"CycleB"}})
 	ok(r:RegisterPlugin(b)); ok(r:RegisterPlugin(c)); fail(r:ResolveDependencies("CycleB"),"DependencyCycle")
 	local noVersion=make("NoVersion"); check(not pcall(function() noVersion.Profile.Version="x" end),"Version profile cannot mutate")
@@ -177,6 +204,9 @@ do
 	local owner=make("Owner",{Capabilities={"CustomDamageRule"}}, {Initialize=function(ctx)
 		saved=ctx; local cap,code=ctx:RegisterCapability("CustomDamageRule",function() return "owner" end,"1.2.0")
 		check(cap~=nil and code==nil,"Capability registers from plugin context")
+		local invalidVersion,invalidVersionCode=ctx:RegisterCapability("CustomDamageRule",{},"latest")
+		check(invalidVersion==nil and invalidVersionCode=="InvalidCapabilityVersion",
+			"Malformed capability versions return InvalidCapabilityVersion instead of raising")
 		check(ctx:GetCapability("CustomDamageRule")==cap,"Plugin can query a registered capability")
 		local sub=ctx:Subscribe("PluginOwnedEvent",function(event) received=event.Type end)
 		check(sub~=nil and sub:IsConnected(),"Context subscription is connected")
@@ -240,6 +270,9 @@ do
 	check(publicContext:HasFeature("Plugins") and publicContext:HasSystem("Plugins"),"Plugins are discoverable through public API feature queries")
 	local missing=CombatAPI.RegisterPlugin({},{}); check(not missing.Success,"Public API rejects non-world target")
 	publicContext:StopPlugin("Public"); publicWorld:Destroy(); check(publicContext:GetPluginResolver()==nil,"Destroyed API context cannot access plugin resolver")
+	local destroyedLookup = publicContext:GetPlugin("Public")
+	check(not destroyedLookup.Success and destroyedLookup.Error.Code=="Destroyed",
+		"Destroyed API context reports Destroyed when looking up a plugin")
 	local modeSeen={}; local modePlugin=make("Modes",{}, {Initialize=function(ctx)
 		ctx:Subscribe("ModeEvent",function(event) modeSeen[#modeSeen+1]=event.ExecutionMode end)
 	end})

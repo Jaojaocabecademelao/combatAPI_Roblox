@@ -56,7 +56,8 @@ local documentedModules = {
 	"Combat/RollbackProfile", "Combat/RollbackResolver", "Combat/RollbackResult", "Combat/AuthorityComponent",
 	"Combat/AuthorityProfile", "Combat/AuthorityResolver", "Combat/AuthorityResult", "Events/EventBus",
 	"Events/EventTypes", "Events/APIContext", "Events/APIResult", "Events/APIError",
-	"Events/ExternalFactJournal", "Plugins/Plugin", "Plugins/PluginProfile", "Plugins/PluginResolver", "Plugins/PluginContext",
+	"Events/ExternalFactJournal", "Plugins/Plugin", "Plugins/PluginProfile", "Plugins/PluginResolver",
+	"Plugins/PluginContext", "Plugins/PluginVersion",
 }
 for _, path in ipairs(documentedModules) do
 	local moduleScript = moduleAt(path)
@@ -71,7 +72,8 @@ for _, method in ipairs({ "CreateWorld", "GetContext", "GetAPIContext", "IsWorld
 	"RegisterPlugin", "StartPlugin", "StopPlugin", "EnablePlugin", "DisablePlugin", "UnregisterPlugin" }) do
 	check(type(CombatAPI[method]) == "function", "Documented CombatAPI method exists: " .. method)
 end
-for _, export in ipairs({ "APIContext", "EventTypes", "APIResult", "APIError", "Plugin", "PluginProfile", "PluginState" }) do
+for _, export in ipairs({ "APIContext", "EventTypes", "APIResult", "APIError", "Plugin", "PluginCapability",
+	"PluginContext", "PluginProfile", "PluginState", "Simulation", "CollisionTopologyCatalog" }) do
 	check(CombatAPI[export] ~= nil, "Documented CombatAPI export exists: " .. export)
 end
 check(CombatAPI.CombatActionCatalog ~= nil and CombatAPI.ReplayRecording ~= nil,

@@ -1,4 +1,5 @@
 local Dependency = require(script.Parent.PluginDependency)
+local PluginVersion = require(script.Parent.PluginVersion)
 local Profile = {}
 Profile.__index = Profile
 Profile.Scope = table.freeze({ Gameplay = "Gameplay", Presentation = "Presentation" })
@@ -6,7 +7,7 @@ function Profile.new(data)
 	assert(type(data) == "table", "PluginProfile.new() expects a table")
 	assert(type(data.Id) == "string" and data.Id:match("^[%w_.%-]+$") ~= nil, "Plugin Id is invalid")
 	assert(type(data.Name) == "string" and data.Name ~= "", "Plugin Name is required")
-	assert(type(data.Version) == "string" and data.Version:match("^%d+%.%d+%.%d+$") ~= nil, "Plugin Version must be numeric major.minor.patch")
+	assert(type(data.Version) == "string" and PluginVersion.isValid(data.Version), "Plugin Version must be numeric major.minor.patch")
 	assert(data.Priority == nil or (type(data.Priority) == "number" and data.Priority == data.Priority and math.abs(data.Priority) < math.huge), "Plugin Priority must be finite")
 	assert(data.AutoStart == nil or type(data.AutoStart) == "boolean", "AutoStart must be boolean")
 	local scope = data.Scope or Profile.Scope.Gameplay

@@ -7,13 +7,23 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 ### Adicionado
 
 - Contratos Luau explícitos para perfil, dependências, implementação, estado, contexto e capacidade de plugins; os métodos de registro e ciclo de vida agora retornam `APIResult<PluginResolverResult>` em vez de `any`, e `CombatAPI` exporta `PluginCapability` e `PluginContext` para o fluxo do plugin.
-- `CombatAPITypesTest` verifica a construção, o registro, a consulta, o início e a capacidade tipados de um plugin pela API pública.
+- A superfície tipada de plugins agora inclui a vista de registry, assinaturas de callbacks de lifecycle/eventos e códigos de falha de capabilities.
+- `PluginContext:GetEventBus()` e `APIContext:GetEvents()` agora usam o contrato público tipado de `EventBus`, incluindo operações de inscrição, dispatch, consulta de erros e teardown.
+- `CombatAPITypesTest` verifica a construção, registro, consulta, início, capability, erros de registro, invalidação do contexto e limpeza de inscrição pela API pública.
+- `APIContext:GetPlugin` agora retorna `InvalidArgument` para IDs vazios e `Destroyed` após o descarte do contexto, em vez de classificar esses casos como `NotFound`.
+- O contrato de `PluginContext:Subscribe` explicita os códigos de erro locais (`InvalidContext` e `InvalidArgument`) além dos erros retornados pelo EventBus.
+- Validação e comparação de versões de plugins e capabilities foram centralizadas em `Plugins/PluginVersion`; componentes numéricos são comparados sem arredondamento de ponto flutuante, e versões inválidas de capability retornam `InvalidCapabilityVersion`.
 - Contratos Luau públicos ampliados para `CombatAPI`, `APIContext`, eventos,
   inscrições, opções de eventos e construtores de `Attack`/`AttackInstance`.
 - `CombatAPI` e `APIContext` agora declaram assinaturas tipadas; os métodos de
   facade e a superfície pública dos construtores têm contratos explícitos.
 - `CombatAPITypesTest` verifica a compatibilidade estrutural do facade com os
   tipos públicos e exercita os construtores tipados de ataque/instância.
+- `CombatAPI.Simulation` é um construtor público tipado para inicializar a
+  simulação do World antes de capturar ou restaurar snapshots.
+- `CombatAPI.CollisionTopologyCatalog` é exportado e tipado para registrar
+  fábricas versionadas necessárias à reconstrução de hitboxes/hurtboxes em
+  snapshots não vazios.
 - A análise Luau consultiva da CI inclui `CombatAPI.lua` e `APIContext.lua`.
 - Documentação de importação dos tipos e exemplo tipado de `AttackOptions` e
   `AttackInstanceOptions`.
@@ -32,6 +42,8 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 ### Corrigido
 
 - O consumidor de referência de `CustomData` anexava `Hitbox` como componente genérico da entidade, embora o estado rollback da hitbox seja gerenciado por `CollisionWorld`. O exemplo agora registra a região diretamente no `CollisionWorld`; `CombatPublicSurfaceTest` cobre a captura/restauração do override e da geometria pela superfície pública.
+- `CombatPublicSurfaceTest` capturava o snapshot sem inicializar uma `Simulation`; o teste e o exemplo agora criam `CombatAPI.Simulation` pelo facade público antes de usar snapshots.
+- A restauração do snapshot público falhava porque havia geometria registrada sem um `CollisionTopologyCatalog`. O teste e o exemplo agora registram uma fábrica versionada, atribuem os metadados da topologia à hitbox e associam o catálogo ao `CollisionWorld`.
 
 ### Alterado
 

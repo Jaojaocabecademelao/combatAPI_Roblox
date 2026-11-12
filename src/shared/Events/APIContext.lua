@@ -11,6 +11,7 @@ type APIContextType = Types.APIContext
 type APIErrorType = Types.APIError
 type APIResultType<T> = Types.APIResult<T>
 type EventCallback = Types.EventCallback
+type EventBusType = Types.EventBus
 type EventSubscriptionOptions = Types.EventSubscriptionOptions
 type Plugin = Types.Plugin
 type PluginProfile = Types.PluginProfile
@@ -54,7 +55,7 @@ function APIContext:GetWorld(): World?
 	return self.World
 end
 
-function APIContext:GetEvents(): any
+function APIContext:GetEvents(): EventBusType
 	return self.Events
 end
 
@@ -180,10 +181,34 @@ function APIContext:RegisterPlugin(
 end
 
 function APIContext:GetPlugin(id: string): APIResultType<Plugin>
+	if self.Destroyed or not self.World then
+		return APIResult.new(false, nil, APIError.new(APIError.Code.Destroyed, "API context is destroyed", "API"))
+	end
+	if type(id) ~= "string" or id == "" then
+		return APIResult.new(false, nil, APIError.new(
+			APIError.Code.InvalidArgument,
+			"Plugin ID must be a non-empty string",
+			"Plugins",
+			self.World.CurrentFrame
+		))
+	end
 	local resolver = self:GetPluginResolver()
-	local plugin: Plugin? = resolver and resolver:GetPlugin(id)
+	if not resolver then
+		return APIResult.new(false, nil, APIError.new(
+			APIError.Code.NotInitialized,
+			"Plugin resolver is unavailable",
+			"Plugins",
+			self.World.CurrentFrame
+		))
+	end
+	local plugin: Plugin? = resolver:GetPlugin(id)
 	if not plugin then
-		return APIResult.new(false, nil, APIError.new(APIError.Code.NotFound, "Plugin was not found", "Plugins", self.World and self.World.CurrentFrame))
+		return APIResult.new(false, nil, APIError.new(
+			APIError.Code.NotFound,
+			"Plugin was not found",
+			"Plugins",
+			self.World.CurrentFrame
+		))
 	end
 	return APIResult.new(true, plugin)
 end

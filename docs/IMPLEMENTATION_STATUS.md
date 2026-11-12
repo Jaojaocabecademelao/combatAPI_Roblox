@@ -187,3 +187,84 @@ Verificação fora do Studio (harness Luau com stubs de `Vector3`/`CFrame`): 59 
   pendente.
 - Validação Luau e execução no Roblox Studio ainda precisam ser feitas; esta
   alteração não declara aprovação de runtime.
+
+
+## Continuação — contratos e ciclo de vida de capabilities (12 nov 2026)
+
+- `PluginContext:GetRegistry()` agora tem contrato tipado de consulta para
+  plugins e capabilities; as assinaturas de `Initialize`, `Start`, `Stop` e
+  `Subscribe` descrevem os contextos, eventos, inscrições e erros retornados.
+- Os códigos de erro de `RegisterCapability` e `Register` estão enumerados nos
+  tipos públicos, sem mudar o formato de retorno em dois valores.
+- Corrigido `CombatAPITypesTest`: a chamada multi-retorno de
+  `RegisterCapability` agora captura capability e erro em variáveis separadas,
+  em vez de indexar incorretamente o registro retornado como tupla.
+- O teste cobre conflitos, capabilities não declaradas, invalidação do contexto
+  ao parar o plugin e segurança de uma vista de registry retida.
+- Build Rojo e `git diff --check` passaram nesta revisão; a análise Luau e o
+  runtime de Studio continuam pendentes.
+
+
+## Continuação — erros consistentes na consulta de plugins (12 nov 2026)
+
+- `APIContext:GetPlugin` valida o ID antes da consulta e distingue entrada
+  inválida, plugin inexistente e contexto destruído com `InvalidArgument`,
+  `NotFound` e `Destroyed`, respectivamente; a ausência inesperada do resolver
+  é reportada como `NotInitialized`.
+- `PluginContext:Subscribe` tipa tanto erros estruturados do EventBus quanto os
+  códigos locais retornados para argumentos inválidos e contexto invalidado.
+- Regressões adicionadas ao `CombatAPITypesTest` e ao `CombatPluginTest` para
+  validar IDs vazios e consulta após destruição; os casos de Subscribe inválido
+  também são exercitados no teste tipado.
+- Build Rojo e `git diff --check` passaram; testes Roblox Studio e análise Luau
+  continuam pendentes.
+
+
+## Continuação — contrato do EventBus e validação de extensões (12 nov 2026)
+
+- Adicionado o tipo público `EventBus` e aplicado a `APIContext.Events`,
+  `APIContext:GetEvents()` e `PluginContext:GetEventBus()`.
+- A assinatura de callback de `PluginContext:Subscribe` agora reflete o
+  `APIContext` não nulo passado pelo EventBus do World.
+- O teste tipado também verifica acesso ao EventBus compartilhado e a resposta
+  `UnsupportedExtensionKind` da API genérica `PluginContext:Register`.
+- Build Rojo e `git diff --check` passaram; a suíte Roblox Studio/análise Luau
+  permanecem pendentes.
+
+
+## Continuação — consistência de versões de plugins (12 nov 2026)
+
+- `Plugins/PluginVersion` centraliza validação e comparação do formato
+  numérico `major.minor.patch`, reutilizado por perfis, dependências e
+  capabilities.
+- A comparação decimal por componentes preserva exatidão para versões com
+  componentes maiores que a precisão inteira dos números Luau.
+- `PluginCapability.new` valida versão e proprietário; `RegisterCapability`
+  converte versões malformadas em `InvalidCapabilityVersion` em vez de deixar
+  uma asserção escapar durante o ciclo de vida do plugin.
+- `CombatPluginTest` cobre versões inválidas, comparação de componentes muito
+  grandes e dependências sem versão mínima; `CombatDocumentationTest` confirma
+  que o novo módulo está empacotado e carregável.
+- Build Rojo, validação do JSON e `git diff --check` passaram nesta rodada; os
+  testes Roblox Studio e a análise Luau seguem pendentes.
+
+
+## Debug do snapshot público — 12 nov 2026
+
+- O log do Roblox Studio reportou 62 testes aprovados e uma falha em
+  `CombatPublicSurfaceTest`: `World has no Simulation` durante
+  `CaptureCombatState()`. A causa era o teste e o consumidor de referência
+  capturarem/restaurarem snapshots sem inicializar o relógio de simulação
+  exigido pelo schema.
+- `CombatAPI.Simulation` agora é exportado e tipado; o teste de superfície e
+  `CustomDataConsumer.server.lua` inicializam `Simulation.new(world)` antes
+  de usar snapshots. `CombatAPITypesTest` e `CombatDocumentationTest` cobrem o
+  novo contrato.
+- O build Rojo e `git diff --check` passaram após a correção. A suíte precisa
+  ser executada novamente no Roblox Studio; não há ainda evidência de que os
+  63 testes passem juntos.
+- Na execução seguinte do Studio, `CombatPublicSurfaceTest` avançou além da
+  inicialização da Simulation, mas a restauração falhou porque o snapshot tinha
+  geometria não vazia sem um `CollisionTopologyCatalog`. O facade agora expõe
+  o catálogo; o teste e o exemplo configuram uma fábrica versionada. Build e
+  execução da suíte ainda precisam ser repetidos para confirmar o resultado.

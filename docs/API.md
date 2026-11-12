@@ -179,15 +179,35 @@ CombatAPI.UnregisterPlugin(world, id)
 
 The module exports `APIContext`, `EventTypes`, `APIResult`, `APIError`, `Plugin`,
 `PluginCapability`, `PluginContext`, `PluginProfile`, `PluginState`,
-`CombatActionProfiles`, `CombatActionCatalog`, `ReplayRecording`, `Attack`,
+`Simulation`, `CombatActionProfiles`, `CombatActionCatalog`, `ReplayRecording`, `Attack`,
 `AttackInstance`, `AttackCatalog`, `CollisionWorld`, `Hitbox`, `Hurtbox`, and
 `OffensiveProperties`. The profiles expose definition-only `Melee()`,
 `Projectile()`, and `AreaOfEffect()` examples for the shared action pipeline.
+Create a simulation with `CombatAPI.Simulation.new(world)` before capturing or
+restoring combat snapshots; this associates the simulation clock with the World.
+Its options include `FixedDeltaTime`, `MaxStepsPerUpdate`, and `Seed`.
+Collision snapshots containing hitboxes or hurtboxes also require a sealed
+`CollisionTopologyCatalog` attached with `collisionWorld:SetTopologyCatalog`.
+Register a versioned factory for each region definition and set the matching
+`TopologyDefinitionId` and `TopologyDefinitionVersion` on each region; these
+factories let restore rebuild missing regions deterministically.
 Plugin callbacks receive `PluginContext`, which exposes `GetCapability` and
 `RegisterCapability` for extension-owned capabilities keyed by identifier; the
 capability record includes `Id`, `Version`, `Implementation`, and
-`OwnerPluginId`. `CombatAPITypes.lua` is a sibling type-only module; import its
-types with `type CombatTypes = require(ReplicatedStorage.Shared.CombatAPITypes)`.
+`OwnerPluginId`. `GetRegistry()` returns a read-only query view with plugin and
+capability lookup/list operations. `RegisterCapability` returns two values:
+the capability on success, or a stable code such as `CapabilityConflict`,
+`CapabilityNotDeclared`, `InvalidCapabilityId`, `InvalidCapabilityVersion`,
+or `InvalidContext` on failure.
+Plugin, dependency, and capability versions use the numeric `major.minor.patch`
+form; malformed capability versions are returned as `InvalidCapabilityVersion`.
+`GetEventBus()` returns the World's shared EventBus; the public Luau contract
+describes its subscription, dispatch, error-query, and teardown methods.
+The context and its registry view become invalid when the plugin stops; a
+retained registry view then returns empty/false results rather than accessing
+the destroyed resolver, and context-owned subscriptions/capabilities are
+released. `CombatAPITypes.lua` is a sibling type-only module; import its types
+with `type CombatTypes = require(ReplicatedStorage.Shared.CombatAPITypes)`.
 The module exports the `CombatAPI`, `APIContext`, `World`, `APIResult<T>`,
 `APIError`, `Event`, `Attack`, `AttackOptions`, `AttackInstance`,
 `AttackInstanceOptions`, `OffensiveProperties`, and `CustomData` contracts.
@@ -274,6 +294,8 @@ Some accessors return `nil` before an optional pipeline is supplied. In particul
 ## APIContext
 
 `world:GetCombatAPI()` and `world:GetAPIContext()` return the same World-owned `APIContext`. It exposes guarded entity operations (`GetEntity`, `CreateEntity`, `DestroyEntity`), event access/subscription, system lookup (`GetSystem`, `HasSystem`, `HasFeature`), named resolver getters, and Plugin lifecycle convenience methods. Methods return `APIResult` where implemented; a failed result includes an `APIError`.
+
+`APIContext:GetPlugin(id)` requires a non-empty string ID. It returns `InvalidArgument` for malformed IDs, `NotFound` for an unknown plugin, and `Destroyed` after the context is destroyed.
 
 `APIResult` fields are `Success`, `Value`, and `Error`. `APIError` fields are `Code`, `Message`, `System`, `Frame`, and `Context`. Expected validation/operation failures are results; malformed constructors and programmer contract violations may still raise assertions.
 

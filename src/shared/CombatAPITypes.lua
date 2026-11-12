@@ -118,6 +118,15 @@ export type EventSubscriptionOptions = {
 	Filter: { [string]: any }?,
 }
 
+export type EventBus = {
+	Subscribe: (self: EventBus, eventType: string, callback: EventCallback, options: EventSubscriptionOptions?) -> (EventSubscription?, APIError?),
+	Unsubscribe: (self: EventBus, id: number) -> boolean,
+	Dispatch: (self: EventBus, eventType: string, payload: { [string]: any }?, context: { [string]: any }?) -> (Event?, APIError?),
+	GetErrors: (self: EventBus) -> { APIError },
+	ClearErrors: (self: EventBus) -> EventBus,
+	Destroy: (self: EventBus) -> boolean,
+}
+
 export type PluginDependency = string | {
 	PluginId: string,
 	MinVersion: string?,
@@ -162,9 +171,9 @@ export type Plugin = {
 }
 
 export type PluginImplementation = {
-	Initialize: ((context: any, plugin: Plugin) -> boolean?)?,
-	Start: ((context: any, plugin: Plugin) -> boolean?)?,
-	Stop: ((context: any, plugin: Plugin) -> boolean?)?,
+	Initialize: ((context: PluginContext, plugin: Plugin) -> boolean?)?,
+	Start: ((context: PluginContext, plugin: Plugin) -> boolean?)?,
+	Stop: ((context: PluginContext, plugin: Plugin) -> boolean?)?,
 }
 
 export type PluginCapability = {
@@ -174,15 +183,35 @@ export type PluginCapability = {
 	OwnerPluginId: string,
 }
 
+export type PluginRegistryView = {
+	Get: (self: PluginRegistryView, id: string) -> Plugin?,
+	Has: (self: PluginRegistryView, id: string) -> boolean,
+	List: (self: PluginRegistryView) -> { Plugin },
+	HasCapability: (self: PluginRegistryView, id: string) -> boolean,
+	GetCapability: (self: PluginRegistryView, id: string) -> PluginCapability?,
+	ListCapabilities: (self: PluginRegistryView) -> { PluginCapability },
+}
+
+export type PluginContextErrorCode =
+	"InvalidContext"
+	| "InvalidArgument"
+	| "InvalidCapabilityId"
+	| "InvalidCapabilityVersion"
+	| "CapabilityNotDeclared"
+	| "CapabilityConflict"
+	| "CapabilityNotFound"
+	| "PermissionDenied"
+	| "UnsupportedExtensionKind"
+
 export type PluginContext = {
 	GetWorld: (self: PluginContext) -> World?,
-	GetAPI: (self: PluginContext) -> any?,
-	GetEventBus: (self: PluginContext) -> any?,
-	GetRegistry: (self: PluginContext) -> any?,
+	GetAPI: (self: PluginContext) -> APIContext?,
+	GetEventBus: (self: PluginContext) -> EventBus?,
+	GetRegistry: (self: PluginContext) -> PluginRegistryView?,
 	GetCapability: (self: PluginContext, id: string) -> PluginCapability?,
-	RegisterCapability: (self: PluginContext, id: string, implementation: any?, version: string?) -> (PluginCapability?, string?),
-	Subscribe: (self: PluginContext, eventType: string, callback: (any, any, any?) -> (), options: { [string]: any }?) -> (any, string?),
-	Register: (self: PluginContext, kind: "Capability", id: string, implementation: any?, version: string?) -> (PluginCapability?, string?),
+	RegisterCapability: (self: PluginContext, id: string, implementation: any?, version: string?) -> (PluginCapability?, PluginContextErrorCode?),
+	Subscribe: (self: PluginContext, eventType: string, callback: (Event, APIContext, PluginContext) -> (), options: EventSubscriptionOptions?) -> (EventSubscription?, APIError | PluginContextErrorCode?),
+	Register: (self: PluginContext, kind: string, id: string, implementation: any?, version: string?) -> (PluginCapability?, PluginContextErrorCode?),
 	IsValid: (self: PluginContext) -> boolean,
 }
 
@@ -209,18 +238,37 @@ export type World = {
 	GetEntity: (self: World, id: EntityId) -> any?,
 	DestroyEntity: (self: World, entityOrId: any) -> boolean,
 	GetCombatAPI: (self: World) -> any,
+	GetSimulation: (self: World) -> Simulation?,
+	SetSimulation: (self: World, simulation: Simulation) -> Simulation,
+	Step: (self: World, deltaTime: number, frame: number?, time: number?) -> (),
 	CaptureCombatState: (self: World) -> any,
 	RestoreCombatState: (self: World, snapshot: any, options: { [string]: any }?) -> (boolean, string?),
 	HashCombatState: (self: World, snapshot: any?) -> string,
 	Destroy: (self: World) -> boolean,
 }
 
+export type SimulationOptions = {
+	FixedDeltaTime: number?,
+	MaxStepsPerUpdate: number?,
+	Seed: number?,
+}
+
+export type Simulation = {
+	World: World,
+	Frame: number,
+	GetWorld: (self: Simulation) -> World,
+	Step: (self: Simulation) -> (),
+	Update: (self: Simulation, deltaTime: number) -> number,
+	CaptureState: (self: Simulation) -> { [string]: any },
+	RestoreState: (self: Simulation, snapshot: { [string]: any }) -> (boolean, string?),
+}
+
 export type APIContext = {
 	World: World?,
-	Events: any,
+	Events: EventBus,
 	Destroyed: boolean,
 	GetWorld: (self: APIContext) -> World?,
-	GetEvents: (self: APIContext) -> any,
+	GetEvents: (self: APIContext) -> EventBus,
 	Subscribe: (self: APIContext, eventType: string, callback: EventCallback, options: EventSubscriptionOptions?) -> (EventSubscription?, APIError?),
 	On: (self: APIContext, eventType: string, callback: EventCallback, options: EventSubscriptionOptions?) -> (EventSubscription?, APIError?),
 	GetEntity: (self: APIContext, id: EntityId) -> APIResult<any>,
@@ -298,6 +346,10 @@ export type PluginStateModule = {
 	Failed: "Failed",
 }
 
+export type SimulationModule = {
+	new: (world: World, options: SimulationOptions?) -> Simulation,
+}
+
 export type AttackModule = {
 	new: (options: AttackOptions?) -> Attack,
 }
@@ -306,12 +358,26 @@ export type AttackInstanceModule = {
 	new: (attack: Attack, ownerEntity: any?, idGenerator: any?, options: AttackInstanceConstructorOptions?) -> AttackInstance,
 }
 
+export type CollisionTopologyCatalog = {
+	Register: (self: CollisionTopologyCatalog, id: string, version: string | number, factory: (any, any?) -> any) -> CollisionTopologyCatalog,
+	Resolve: (self: CollisionTopologyCatalog, id: string, version: (string | number)?) -> ((any, any?) -> any)?, string?),
+	CaptureManifest: (self: CollisionTopologyCatalog) -> { [string]: any },
+	ValidateManifest: (self: CollisionTopologyCatalog, manifest: any) -> (boolean, string?),
+	CreateRegion: (self: CollisionTopologyCatalog, saved: any, owner: any?) -> (any?, string?),
+	Seal: (self: CollisionTopologyCatalog) -> CollisionTopologyCatalog,
+}
+
+export type CollisionTopologyCatalogModule = {
+	new: () -> CollisionTopologyCatalog,
+}
+
 export type CombatAPI = {
 	Name: string,
 	Version: number,
 	SemVer: string,
 	Contracts: { [string]: number },
 	CreateWorld: (options: { [string]: any }?) -> World,
+	Simulation: SimulationModule,
 	GetContext: (world: World) -> APIContext?,
 	GetAPIContext: (world: World) -> APIContext?,
 	IsWorld: (value: any) -> boolean,
@@ -339,6 +405,7 @@ export type CombatAPI = {
 	AttackInstance: AttackInstanceModule,
 	AttackCatalog: any,
 	CollisionWorld: any,
+	CollisionTopologyCatalog: CollisionTopologyCatalogModule,
 	Hitbox: any,
 	Hurtbox: any,
 	OffensiveProperties: any,

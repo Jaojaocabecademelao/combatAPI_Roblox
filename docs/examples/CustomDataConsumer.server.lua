@@ -9,7 +9,23 @@ type AttackOptions = CombatAPITypes.AttackOptions
 type AttackInstanceOptions = CombatAPITypes.AttackInstanceOptions
 
 local world: CombatAPITypes.World = CombatAPI.CreateWorld()
+local simulation: CombatAPITypes.Simulation = CombatAPI.Simulation.new(world)
 local collisionWorld = CombatAPI.CollisionWorld.new(world)
+local topologyCatalog = CombatAPI.CollisionTopologyCatalog.new()
+topologyCatalog:Register("example.charged-strike.hitbox", 1, function(saved, owner)
+    return CombatAPI.Hitbox.new({
+        Id = saved.Id,
+        Owner = owner,
+        Shape = saved.Shape,
+        Size = Vector3.new(1, 1, 1),
+        Damage = 12,
+        Hitstun = 18,
+        TopologyDefinitionId = "example.charged-strike.hitbox",
+        TopologyDefinitionVersion = 1,
+    })
+end)
+topologyCatalog:Seal()
+collisionWorld:SetTopologyCatalog(topologyCatalog)
 local attackCatalog = CombatAPI.AttackCatalog.new()
 
 local chargedAttackOptions: AttackOptions = {
@@ -57,6 +73,8 @@ local function applyCharge(chargeFrames: number)
         Size = Vector3.new(radius * 2, 4, radius * 2),
         Damage = 12,
         Hitstun = 18,
+        TopologyDefinitionId = "example.charged-strike.hitbox",
+        TopologyDefinitionVersion = 1,
     })
     attackInstance:AddHitbox(hitbox)
     -- Register the region directly: Hitbox is rollback-owned by CollisionWorld,

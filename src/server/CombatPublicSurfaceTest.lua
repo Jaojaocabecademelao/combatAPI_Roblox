@@ -12,6 +12,9 @@ check(type(CombatAPI.Attack) == "table" and type(CombatAPI.Attack.new) == "funct
 check(type(CombatAPI.AttackInstance) == "table" and type(CombatAPI.AttackInstance.new) == "function", "AttackInstance constructor is not public")
 check(type(CombatAPI.AttackCatalog) == "table" and type(CombatAPI.AttackCatalog.new) == "function", "AttackCatalog constructor is not public")
 check(type(CombatAPI.CollisionWorld) == "table" and type(CombatAPI.CollisionWorld.new) == "function", "CollisionWorld constructor is not public")
+check(type(CombatAPI.CollisionTopologyCatalog) == "table"
+    and type(CombatAPI.CollisionTopologyCatalog.new) == "function",
+    "CollisionTopologyCatalog constructor is not public")
 check(type(CombatAPI.Hitbox) == "table" and type(CombatAPI.Hitbox.new) == "function", "Hitbox constructor is not public")
 check(type(CombatAPI.Hurtbox) == "table" and type(CombatAPI.Hurtbox.new) == "function", "Hurtbox constructor is not public")
 check(type(CombatAPI.OffensiveProperties) == "table", "OffensiveProperties is not public")
@@ -41,11 +44,28 @@ check(catalog:ValidateManifest(manifest) == true, "public AttackCatalog rejected
 -- The reference consumer must capture/restore collision-owned hitboxes without
 -- attaching them as generic Entity components (Hitbox has a CollisionWorld contract).
 local rollbackWorld = CombatAPI.CreateWorld()
+local simulation = CombatAPI.Simulation.new(rollbackWorld)
+check(simulation:GetWorld() == rollbackWorld and rollbackWorld:GetSimulation() == simulation,
+    "public Simulation constructor associates rollback state with its World")
 local publicContext = CombatAPI.GetContext(rollbackWorld)
 check(publicContext ~= nil and publicContext == rollbackWorld:GetAPIContext(),
     "CombatAPI context helpers return the World-owned public context")
 check(publicContext:HasFeature("Events"), "public API context exposes the Events feature")
 local collisionWorld = CombatAPI.CollisionWorld.new(rollbackWorld)
+local topologyCatalog = CombatAPI.CollisionTopologyCatalog.new()
+topologyCatalog:Register("public-surface.hitbox", 1, function(saved, regionOwner)
+    return CombatAPI.Hitbox.new({
+        Id = saved.Id,
+        Owner = regionOwner,
+        Shape = saved.Shape,
+        Size = Vector3.new(10, 4, 10),
+        Damage = 8,
+        TopologyDefinitionId = "public-surface.hitbox",
+        TopologyDefinitionVersion = 1,
+    })
+end)
+topologyCatalog:Seal()
+collisionWorld:SetTopologyCatalog(topologyCatalog)
 local rollbackAttack = CombatAPI.Attack.new({
     Id = "public-customdata-rollback",
     Damage = 8,
@@ -69,6 +89,8 @@ local region = CombatAPI.Hitbox.new({
     Position = Vector3.new(0, 3, 0),
     Size = Vector3.new(10, 4, 10),
     Damage = 8,
+    TopologyDefinitionId = "public-surface.hitbox",
+    TopologyDefinitionVersion = 1,
 })
 instance:AddHitbox(region)
 collisionWorld:RegisterHitbox(region)
