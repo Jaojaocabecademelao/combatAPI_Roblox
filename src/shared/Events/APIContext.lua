@@ -12,11 +12,20 @@ type APIErrorType = Types.APIError
 type APIResultType<T> = Types.APIResult<T>
 type EventCallback = Types.EventCallback
 type EventSubscriptionOptions = Types.EventSubscriptionOptions
+type Plugin = Types.Plugin
+type PluginProfile = Types.PluginProfile
+type PluginProfileOptions = Types.PluginProfileOptions
+type PluginImplementation = Types.PluginImplementation
+type PluginResolverResult = Types.PluginResolverResult
 
 local APIContext: any = {}
 APIContext.__index = APIContext
 
-local function wrapResolverResult(result: any, system: string, frame: number?): APIResultType<any>
+local function wrapResolverResult(
+	result: PluginResolverResult,
+	system: string,
+	frame: number?
+): APIResultType<PluginResolverResult>
 	local err: APIErrorType? = nil
 	if not result.Success then
 		err = ResolverErrorMap.toError(result, system, frame)
@@ -158,37 +167,45 @@ function APIContext:GetRollbackResolver(): any? return self:_get("GetRollbackRes
 function APIContext:GetAuthorityResolver(): any? return self:_get("GetAuthorityResolver") end
 function APIContext:GetPluginResolver(): any? return self:_get("GetPluginResolver") end
 
-function APIContext:RegisterPlugin(plugin: any, implementation: any): APIResultType<any>
+function APIContext:RegisterPlugin(
+	plugin: Plugin | PluginProfile | PluginProfileOptions,
+	implementation: PluginImplementation?
+): APIResultType<PluginResolverResult>
 	local resolver = self:GetPluginResolver()
 	if not resolver then
 		return APIResult.new(false, nil, APIError.new(APIError.Code.Destroyed, "Plugin resolver is unavailable", "Plugins"))
 	end
-	local result = resolver:RegisterPlugin(plugin, implementation)
+	local result: PluginResolverResult = resolver:RegisterPlugin(plugin, implementation)
 	return wrapResolverResult(result, "Plugins", self.World and self.World.CurrentFrame)
 end
 
-function APIContext:GetPlugin(id: string): APIResultType<any>
+function APIContext:GetPlugin(id: string): APIResultType<Plugin>
 	local resolver = self:GetPluginResolver()
-	local plugin = resolver and resolver:GetPlugin(id)
+	local plugin: Plugin? = resolver and resolver:GetPlugin(id)
 	if not plugin then
 		return APIResult.new(false, nil, APIError.new(APIError.Code.NotFound, "Plugin was not found", "Plugins", self.World and self.World.CurrentFrame))
 	end
 	return APIResult.new(true, plugin)
 end
 
-local function invokePluginLifecycle(self: any, method: string, id: string): APIResultType<any>
+local function invokePluginLifecycle(
+	self: any,
+	method: string,
+	id: string
+): APIResultType<PluginResolverResult>
 	local resolver = self:GetPluginResolver()
 	if not resolver then
 		return APIResult.new(false, nil, APIError.new(APIError.Code.Destroyed, "Plugin resolver is unavailable", "Plugins"))
 	end
-	return wrapResolverResult(resolver[method](resolver, id), "Plugins", self.World and self.World.CurrentFrame)
+	local result: PluginResolverResult = resolver[method](resolver, id)
+	return wrapResolverResult(result, "Plugins", self.World and self.World.CurrentFrame)
 end
 
-function APIContext:StartPlugin(id: string): APIResultType<any> return invokePluginLifecycle(self, "StartPlugin", id) end
-function APIContext:StopPlugin(id: string): APIResultType<any> return invokePluginLifecycle(self, "StopPlugin", id) end
-function APIContext:UnregisterPlugin(id: string): APIResultType<any> return invokePluginLifecycle(self, "UnregisterPlugin", id) end
-function APIContext:EnablePlugin(id: string): APIResultType<any> return invokePluginLifecycle(self, "EnablePlugin", id) end
-function APIContext:DisablePlugin(id: string): APIResultType<any> return invokePluginLifecycle(self, "DisablePlugin", id) end
+function APIContext:StartPlugin(id: string): APIResultType<PluginResolverResult> return invokePluginLifecycle(self, "StartPlugin", id) end
+function APIContext:StopPlugin(id: string): APIResultType<PluginResolverResult> return invokePluginLifecycle(self, "StopPlugin", id) end
+function APIContext:UnregisterPlugin(id: string): APIResultType<PluginResolverResult> return invokePluginLifecycle(self, "UnregisterPlugin", id) end
+function APIContext:EnablePlugin(id: string): APIResultType<PluginResolverResult> return invokePluginLifecycle(self, "EnablePlugin", id) end
+function APIContext:DisablePlugin(id: string): APIResultType<PluginResolverResult> return invokePluginLifecycle(self, "DisablePlugin", id) end
 
 function APIContext:Destroy(): boolean
 	if self.Destroyed then return false end

@@ -6,6 +6,8 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 
 ### Adicionado
 
+- Contratos Luau explícitos para perfil, dependências, implementação, estado e resultado de plugins; os métodos de registro e ciclo de vida agora retornam `APIResult<PluginResolverResult>` em vez de `any`.
+- `CombatAPITypesTest` verifica a construção, o registro, a consulta e o início tipados de um plugin pela API pública.
 - Contratos Luau públicos ampliados para `CombatAPI`, `APIContext`, eventos,
   inscrições, opções de eventos e construtores de `Attack`/`AttackInstance`.
 - `CombatAPI` e `APIContext` agora declaram assinaturas tipadas; os métodos de

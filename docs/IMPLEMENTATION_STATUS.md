@@ -171,3 +171,19 @@ Verificação fora do Studio (harness Luau com stubs de `Vector3`/`CFrame`): 59 
   possível executar a análise, o build Rojo ou os testes de runtime nesta rodada.
   O relatório `combatapi-studio-test-report.md` mantém os 63 resultados como
   pendentes. A Etapa B permanece parcial.
+
+
+## Continuação — contratos tipados de plugins (12 nov 2026)
+
+- Os tipos públicos agora descrevem perfis, dependências, implementações, estados
+  e resultados de plugin. `CombatAPI` e `APIContext` tipam registro e ciclo de
+  vida com `APIResult<PluginResolverResult>`, e a consulta de plugin retorna
+  `APIResult<Plugin>`.
+- `CombatAPITypesTest` cobre construção, registro, consulta e início de plugin
+  pela superfície pública.
+- A fronteira de acesso a resolvers continua intencionalmente dinâmica; os
+  tipos de contexto de callback ainda deixam `any` para a API extensível do
+  contexto de plugin. A tipagem estrita completa da implementação permanece
+  pendente.
+- Validação Luau e execução no Roblox Studio ainda precisam ser feitas; esta
+  alteração não declara aprovação de runtime.

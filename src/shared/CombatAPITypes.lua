@@ -118,6 +118,62 @@ export type EventSubscriptionOptions = {
 	Filter: { [string]: any }?,
 }
 
+export type PluginDependency = string | {
+	PluginId: string,
+	MinVersion: string?,
+	Optional: boolean?,
+}
+
+export type PluginProfileOptions = {
+	Id: string,
+	Name: string,
+	Version: string,
+	Dependencies: { PluginDependency }?,
+	Capabilities: { string }?,
+	AutoStart: boolean?,
+	Priority: number?,
+	Scope: ("Gameplay" | "Presentation")?,
+}
+
+export type PluginProfile = {
+	Id: string,
+	Name: string,
+	Version: string,
+	Dependencies: { { PluginId: string, MinVersion: string?, Optional: boolean } },
+	Capabilities: { string },
+	AutoStart: boolean,
+	Priority: number,
+	Scope: "Gameplay" | "Presentation",
+}
+
+export type PluginLifecycleState =
+	"Registered" | "Initializing" | "Active" | "Stopping" | "Stopped" | "Failed"
+
+export type Plugin = {
+	Profile: PluginProfile,
+	Id: string,
+	Name: string,
+	Version: string,
+	Scope: "Gameplay" | "Presentation",
+	State: PluginLifecycleState,
+	Enabled: boolean?,
+	Failure: string?,
+}
+
+export type PluginImplementation = {
+	Initialize: ((context: any, plugin: Plugin) -> boolean?)?,
+	Start: ((context: any, plugin: Plugin) -> boolean?)?,
+	Stop: ((context: any, plugin: Plugin) -> boolean?)?,
+}
+
+export type PluginResolverResult = {
+	Success: boolean,
+	Code: string,
+	PluginId: string?,
+	Value: Plugin?,
+	Details: (string | { [string]: any })?,
+}
+
 export type SystemName =
 	"Simulation" | "Input" | "Collision" | "Damage" | "Defense"
 	| "CombatResolution" | "Motion" | "Guard" | "Combo" | "Juggle"
@@ -175,13 +231,13 @@ export type APIContext = {
 	GetRollbackResolver: (self: APIContext) -> any?,
 	GetAuthorityResolver: (self: APIContext) -> any?,
 	GetPluginResolver: (self: APIContext) -> any?,
-	RegisterPlugin: (self: APIContext, plugin: any, implementation: any) -> APIResult<any>,
-	GetPlugin: (self: APIContext, id: string) -> APIResult<any>,
-	StartPlugin: (self: APIContext, id: string) -> APIResult<any>,
-	StopPlugin: (self: APIContext, id: string) -> APIResult<any>,
-	UnregisterPlugin: (self: APIContext, id: string) -> APIResult<any>,
-	EnablePlugin: (self: APIContext, id: string) -> APIResult<any>,
-	DisablePlugin: (self: APIContext, id: string) -> APIResult<any>,
+	RegisterPlugin: (self: APIContext, plugin: Plugin | PluginProfile | PluginProfileOptions, implementation: PluginImplementation?) -> APIResult<PluginResolverResult>,
+	GetPlugin: (self: APIContext, id: string) -> APIResult<Plugin>,
+	StartPlugin: (self: APIContext, id: string) -> APIResult<PluginResolverResult>,
+	StopPlugin: (self: APIContext, id: string) -> APIResult<PluginResolverResult>,
+	UnregisterPlugin: (self: APIContext, id: string) -> APIResult<PluginResolverResult>,
+	EnablePlugin: (self: APIContext, id: string) -> APIResult<PluginResolverResult>,
+	DisablePlugin: (self: APIContext, id: string) -> APIResult<PluginResolverResult>,
 	Destroy: (self: APIContext) -> boolean,
 }
 
@@ -194,6 +250,24 @@ export type APIErrorModule = {
 export type APIResultModule = {
 	new: <T>(success: boolean, value: T?, err: APIError?) -> APIResult<T>,
 	is: (value: any) -> boolean,
+}
+
+export type PluginModule = {
+	new: (profile: PluginProfile | PluginProfileOptions, implementation: PluginImplementation?) -> Plugin,
+}
+
+export type PluginProfileModule = {
+	Scope: { Gameplay: "Gameplay", Presentation: "Presentation" },
+	new: (data: PluginProfileOptions) -> PluginProfile,
+}
+
+export type PluginStateModule = {
+	Registered: "Registered",
+	Initializing: "Initializing",
+	Active: "Active",
+	Stopping: "Stopping",
+	Stopped: "Stopped",
+	Failed: "Failed",
 }
 
 export type AttackModule = {
@@ -214,19 +288,19 @@ export type CombatAPI = {
 	GetAPIContext: (world: World) -> APIContext?,
 	IsWorld: (value: any) -> boolean,
 	GetPluginResolver: (world: World) -> any?,
-	RegisterPlugin: (world: World, plugin: any, implementation: any) -> APIResult<any>,
-	StartPlugin: (world: World, id: string) -> APIResult<any>,
-	StopPlugin: (world: World, id: string) -> APIResult<any>,
-	UnregisterPlugin: (world: World, id: string) -> APIResult<any>,
-	EnablePlugin: (world: World, id: string) -> APIResult<any>,
-	DisablePlugin: (world: World, id: string) -> APIResult<any>,
+	RegisterPlugin: (world: World, plugin: Plugin | PluginProfile | PluginProfileOptions, implementation: PluginImplementation?) -> APIResult<PluginResolverResult>,
+	StartPlugin: (world: World, id: string) -> APIResult<PluginResolverResult>,
+	StopPlugin: (world: World, id: string) -> APIResult<PluginResolverResult>,
+	UnregisterPlugin: (world: World, id: string) -> APIResult<PluginResolverResult>,
+	EnablePlugin: (world: World, id: string) -> APIResult<PluginResolverResult>,
+	DisablePlugin: (world: World, id: string) -> APIResult<PluginResolverResult>,
 	APIContext: { new: (world: World) -> APIContext },
 	EventTypes: { [string]: string },
 	APIResult: APIResultModule,
 	APIError: APIErrorModule,
-	Plugin: any,
-	PluginProfile: any,
-	PluginState: any,
+	Plugin: PluginModule,
+	PluginProfile: PluginProfileModule,
+	PluginState: PluginStateModule,
 	CombatActionProfiles: any,
 	CombatActionCatalog: any,
 	ReplayRecording: any,
