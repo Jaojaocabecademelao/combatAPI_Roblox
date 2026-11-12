@@ -10,6 +10,12 @@ The following entry points are public and covered by the package's compatibility
 - `CombatAPI.APIContext` methods documented in `API.md`, including entity operations, events, feature discovery, and named system lookup.
 - `CombatAPI.APIResult`, `APIError`, `EventTypes`, plugin contracts, action definitions/catalogs, replay recordings, and the exported constructors listed below.
 - `CombatAPI.Simulation`, `Attack`, `AttackInstance`, `AttackCatalog`, `CollisionTopologyCatalog`, `CollisionWorld`, `Hitbox`, `Hurtbox`, and `OffensiveProperties`.
+- Plugin registration accepts typed `Plugin`, `PluginProfile`, or `PluginProfileOptions` values. Lifecycle callbacks receive a public `PluginContext` with a typed registry query view; context-owned subscriptions and capabilities are released on stop. Capability registration reports its failure code as the second return value. Lifecycle results preserve the resolver result shape (`Success`, `Code`, optional `PluginId`, `Value`, and `Details`) inside `APIResult.Value`; `Code` there is a resolver code, distinct from the stable `APIError.Code`.
+- `APIContext:GetPlugin` distinguishes malformed IDs (`InvalidArgument`), missing plugins (`NotFound`), and a destroyed context (`Destroyed`).
+- Plugin profile, dependency minimum, and capability versions use numeric `major.minor.patch` strings; malformed capability versions return `InvalidCapabilityVersion`.
+- `CombatAPI.CombatActionDefinition`, `CombatActionCatalog`, `Attack`,
+  `AttackInstance`, `AttackCatalog`, `CollisionWorld`, `Hitbox`, `Hurtbox`, and
+  `OffensiveProperties`.
 - World methods explicitly listed in the World accessors section of `API.md`.
 - Luau type contracts for the facade, APIContext, events, errors/results, attack properties, collision, rollback, and simulation values are provided by `CombatAPITypes.lua` and re-exported by their public modules. These type exports describe supported consumer shapes; internal resolver objects remain outside the stable boundary or intentionally opaque until their contracts are completed.
 
@@ -54,3 +60,17 @@ Public operations that return `APIResult` use:
 `APIError.Code` values are stable identifiers, not user-facing prose. Consumers should branch on `Code`, not `Message`. Messages may become more descriptive between compatible releases. Plugin resolver failures map to the stable API categories: missing plugins/dependencies to `NotFound`, duplicate or conflicting registrations to `AlreadyExists`, disabled plugins to `Disabled`, invalid plugin data to `InvalidArgument`, permission failures to `PermissionDenied`, destroyed Worlds to `Destroyed`, initialization/runtime/stop failures to `InternalError`, and other lifecycle/dependency failures to `InvalidOperation`. The original resolver code remains available in `Error.Context.ResolverCode`; dependency and resolver details are preserved in that context. Unrecognized resolver codes map to `InvalidOperation`.
 
 The recognized `APIError.Code` values are `InvalidArgument`, `InvalidEntity`, `InvalidOperation`, `NotFound`, `AlreadyExists`, `NotInitialized`, `Disabled`, `PermissionDenied`, `InternalError`, and `Destroyed`. `APIError.isCode(value)` can be used to check a code before branching on it. `APIError` and `APIResult` records are shallow-frozen; `Context` is not deep-frozen and must be treated as read-only by consumers. `APIError.fromResolverResult()` copies resolver details into a new context table.
+
+### Plugin resolver result mapping
+
+| `APIError.Code` | Resolver result codes |
+|---|---|
+| `NotFound` | `PluginNotFound`, `DependencyMissing` |
+| `AlreadyExists` | `DuplicatePlugin`, `PluginAlreadyOwned` |
+| `InvalidArgument` | `InvalidPlugin` |
+| `Disabled` | `PluginDisabled` |
+| `Destroyed` | `WorldDestroyed` |
+| `InternalError` | `InitializationFailed`, `PluginRuntimeFailed`, `StopFailed` (an exception escaped plugin-owned code) |
+| `InvalidOperation` | `InvalidLifecycleState`, `PluginActive`, `ActiveDependents`, `DependencyCycle`, `DependencyVersionMismatch`, `DependencyFailed`, and any resolver code not listed here |
+
+This mapping applies only to failed `PluginResolver` lifecycle/registration results wrapped in `APIResult`. Plugin-context methods have a separate return contract: `RegisterCapability` returns `(capability, code)`, with `InvalidContext`, `InvalidCapabilityId`, `InvalidCapabilityVersion`, `CapabilityNotDeclared`, or `CapabilityConflict`; `Register` can also return `UnsupportedExtensionKind`. These context codes are not `APIError.Code` values and are not passed through this mapping. A new resolver result code maps to `InvalidOperation` until listed here.

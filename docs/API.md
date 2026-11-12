@@ -7,7 +7,8 @@
 `CombatAPI.Version` remains the integer API generation (`1`) for existing
 consumers. `CombatAPI.SemVer` reports the package release version (`0.3.0`),
 while `CombatAPI.Contracts` exposes independently versioned serialized
-contracts, including the attack catalog manifest and combat state schema.
+contracts, including the attack/action catalog manifests and combat state
+schema.
 See [PUBLIC_API.md](PUBLIC_API.md) for the compatibility boundary and
 versioning/deprecation policy.
 
@@ -76,7 +77,11 @@ lists are sorted by region ID and the objects may have been reconstructed.
 operations attempted during rollback/replay.
 `world:AssertDeterministicOperation(operation, details)` and
 `world:GetDeterminismViolations()` expose the simulation determinism guard for
-plugin and adapter code.
+plugin and adapter code. Each violation includes a monotonic `Sequence` and
+the current simulation `Frame`, in addition to its operation, execution
+context, and optional details. `ClearViolations()` clears stored records
+without resetting the sequence. This is explicit instrumentation; it does not
+intercept arbitrary Roblox API calls.
 Use `world:RegisterGameplayEventHandler` and
 `world:ScheduleGameplayEvent` for serializable gameplay timers.
 `world:GetGameplayScheduler()` returns the data-only scheduler; the legacy
@@ -154,6 +159,21 @@ no `MovementStateComponent`, and `MovementStateRequirementFailed` when its
 current state is outside the declared set.
 `DurationModel` supports `Phased` (the default Startup/Active/Recovery cycle),
 `Instant` (one simulation frame), and `Persistent` (active until cancelled).
+`CombatAPI.CombatActionDefinition.new` accepts optional `GameplayEvents`.
+Each entry has a positive `FrameOffset`, a registered gameplay event `Type`,
+and serializable `Parameters`. The pipeline validates handler references when
+registering the definition or catalog, then dispatches the immutable event
+synchronously from `World:Step` at the declared frame, before advancing the
+action phase. Events at the same offset preserve definition order. Handlers
+registered with `World:RegisterGameplayActionEventHandler` receive the action event
+fields `ActionId`, `ActionDefinitionId`, and `EventIndex` in addition to
+`Type`, `Frame`, `OwnerId`, and `Parameters`. They must mutate only
+authoritative state that participates in rollback/replay;
+presentation effects should be driven from confirmed events instead.
+Gameplay event parameters are defensively copied and recursively frozen, with
+256 entries and depth 8 maximum. Action catalog manifest v2 pins these events;
+legacy manifest v1 remains valid only when current definitions have no
+gameplay events.
 For content that must be validated and pinned across rollback, register
 definitions with `CombatAPI.CombatActionCatalog`, assign a positive integer
 content version, seal the catalog, and pass it to
@@ -167,10 +187,16 @@ repair missing or incompatible fields.
 state, optional external-fact journal, contiguous frame inputs, optional
 per-frame facts, and a caller-provided state hash for each frame. Load it with
 `ReplayRecording.FromSnapshot(snapshot, migrations)`; old versions require
-explicit one-version migration callbacks. `FindFirstDivergence(other)` reports
-the first initial-state, input, per-frame fact, or state-hash mismatch. The
-host still owns simulation execution, hash calculation, retention/privacy
-policy, and loading the external-fact journal into the World before replay.
+explicit one-version migration callbacks. `GetFrame(frame)` returns a
+defensive copy of one recorded frame; `GetFrameRange(first, last)` returns an
+inclusive dense range, and both return an explicit reason when the requested
+data is unavailable. `FindFirstDivergence(other)` reports the first
+initial-state, input, per-frame fact, or state-hash mismatch. Its detail
+includes defensive copies of differing initial state, inputs, per-frame facts,
+or available frame records, along with hashes when applicable. It does not
+store full state snapshots per frame. The host still owns simulation
+execution, hash calculation, retention/privacy policy, and loading the
+external-fact journal into the World before replay.
 
 Statuses may declare `Tags` and finite numeric `Modifiers`. A
 `StatusContainer` exposes `HasTag`, `GetModifier`, and `RemoveByTag`; modifiers
@@ -226,20 +252,104 @@ CombatAPI.UnregisterPlugin(world, id)
 ```
 
 The module exports `APIContext`, `EventTypes`, `APIResult`, `APIError`, `Plugin`,
-`PluginProfile`, `PluginState`, `CombatActionProfiles`, `CombatActionCatalog`,
+`PluginCapability`, `PluginContext`, `PluginProfile`, `PluginState`, `Simulation`,
+`CombatActionProfiles`, `CombatActionDefinition`, `CombatActionCatalog`,
 `ReplayRecording`, `Attack`, `AttackInstance`, `AttackCatalog`,
 `CollisionTopologyCatalog`, `CollisionWorld`, `Hitbox`, `Hurtbox`, and
-`OffensiveProperties`. `CollisionWorld:GetHitboxes()` and `GetHurtboxes()`
-return sorted region lists for inspection/reacquisition. `Hitbox.new()` and
-`Hurtbox.new()` may omit `Id`; `CollisionWorld:RegisterHitbox()` and
-`RegisterHurtbox()` assign one and return the registered region. The profiles expose definition-only
-`Melee()`, `Projectile()`, and `AreaOfEffect()` examples for the shared action
-pipeline. `CombatAPITypes.lua` is a sibling type-only module; import its types
-with `type CombatTypes = require(ReplicatedStorage.Shared.CombatAPITypes)`.
-The facade also exports the `CombatAPI.API` type; event modules and
+`OffensiveProperties`.
+
+The profiles expose definition-only `Melee()`, `Projectile()`, and
+`AreaOfEffect()` examples for the shared action pipeline. Create a simulation
+with `CombatAPI.Simulation.new(world)` before capturing or restoring combat
+snapshots; this associates the simulation clock with the World. Its options
+include `FixedDeltaTime`, `MaxStepsPerUpdate`, and `Seed`, plus optional `RNG`,
+`FrameCommandBuffer`, and `DeterministicScheduler` settings for custom
+deterministic integrations. The typed constructor contract is in
+`CombatAPITypes.SimulationOptions`.
+
+Collision snapshots containing hitboxes or hurtboxes require a sealed
+`CollisionTopologyCatalog` attached with
+`collisionWorld:SetTopologyCatalog`. Register a versioned factory for each
+region definition and set the matching `TopologyDefinitionId` and
+`TopologyDefinitionVersion` on each region so restore can rebuild missing
+regions deterministically. `CollisionWorld:GetHitboxes()` and
+`GetHurtboxes()` return sorted region lists for inspection or reacquisition.
+`Hitbox.new()` and `Hurtbox.new()` may omit `Id`;
+`CollisionWorld:RegisterHitbox()` and `RegisterHurtbox()` assign one and return
+the registered region.
+
+Plugin callbacks receive `PluginContext`, which exposes `GetCapability` and
+`RegisterCapability` for extension-owned capabilities keyed by identifier.
+Capability records include `Id`, `Version`, `Implementation`, and
+`OwnerPluginId`. `GetRegistry()` returns a read-only query view with plugin and
+capability lookup/list operations. `RegisterCapability` returns the capability
+on success, or a stable code such as `CapabilityConflict`,
+`CapabilityNotDeclared`, `InvalidCapabilityId`, `InvalidCapabilityVersion`,
+or `InvalidContext` on failure. Plugin, dependency, and capability versions
+use the numeric `major.minor.patch` form; malformed capability versions are
+returned as `InvalidCapabilityVersion`.
+
+`GetEventBus()` returns the World's shared EventBus; the public Luau contract
+describes its subscription, dispatch, error-query, and teardown methods.
+`APIContext:Subscribe`, `APIContext:On`, and `EventBus:Subscribe` accept
+`EventSubscriptionOptions`: `Priority` orders callbacks from highest to lowest
+(subscription order breaks ties), while filters can be supplied under `Filter`
+or directly through `EntityId`, `SourceSystem`, `AttackerId`, `DefenderId`, and
+`Predicate`. A predicate receives the immutable event and must return `true` to
+match; a predicate error is treated as a non-match and does not abort dispatch.
+The context and its registry view become invalid when the plugin stops; a
+retained registry view then returns empty/false results rather than accessing
+the destroyed resolver, and context-owned subscriptions and capabilities are
+released.
+
+`CombatAPITypes.lua` is a sibling type-only module; import its types with
+`type CombatTypes = require(ReplicatedStorage.Shared.CombatAPITypes)`. The
+facade also exports the `CombatAPI.API` type; event modules and
 `OffensiveProperties` provide type aliases for their public values. Official
-event names are listed by `CombatAPITypes.EventType`. `HitConfirmedPayload` and
-`DamageAppliedPayload` include the optional `CustomData` value.
+event names are listed by `CombatAPITypes.EventType`.
+`HitConfirmedPayload` and `DamageAppliedPayload` include the optional
+`CustomData` value. The module exports the `CombatAPI`, `APIContext`, `World`,
+`APIResult<T>`, `APIError`, `Event`, `Attack`, `AttackOptions`,
+`AttackInstance`, `AttackInstanceOptions`, `OffensiveProperties`, and
+`CustomData` contracts. The public entry module is cast to
+`CombatTypes.CombatAPI`, so consumers using Luau type checking receive
+signatures for the public constructors and facade.
+
+Example:
+
+```lua
+local CombatAPI = require(ReplicatedStorage.Shared.CombatAPI)
+type CombatTypes = require(ReplicatedStorage.Shared.CombatAPITypes)
+
+local pluginProfile: CombatTypes.PluginProfileOptions = {
+    Id = "gameplay.ai",
+    Name = "Gameplay AI",
+    Version = "1.0.0",
+    Capabilities = { "gameplay.ai.retarget" },
+}
+local plugin: CombatTypes.Plugin = CombatAPI.Plugin.new(pluginProfile, {
+    Initialize = function(context)
+        local capability = context:RegisterCapability("gameplay.ai.retarget", {
+            Retarget = function(target) return target end,
+        }, "1.0.0")
+        return capability ~= nil
+    end,
+})
+
+local attackOptions: CombatTypes.AttackOptions = {
+    Id = "ChargedStrike",
+    Damage = 12,
+    CustomData = { Radius = 2, Element = "Arcane" },
+}
+local attack: CombatTypes.Attack = CombatAPI.Attack.new(attackOptions)
+local override: CombatTypes.AttackInstanceOptions = {
+    CustomDataOverrides = { Radius = 5 },
+}
+```
+
+Raw resolver getters intentionally return `any` in the public type contract:
+they are advanced escape hatches, not the stable abstraction boundary. Prefer
+`APIContext` methods and documented `World` methods for integrations.
 
 A complete consumer-side example using only exported constructors is available
 at [examples/CustomDataConsumer.server.lua](examples/CustomDataConsumer.server.lua).
@@ -248,7 +358,7 @@ definition, action catalog manifest, and replay recording formats.
 
 ## Attacks: `CustomData` por definição e instância
 
-`Attack.new({ CustomData = data })` aceita dados opcionais para consumidores de gameplay. O mesmo valor é exposto em `attack.CustomData` e `attack.OffensiveProperties.CustomData`. O conteúdo é opaco para a API: use tabelas simples serializáveis, sem metatables, ciclos, funções, Instances/userdata ou números não finitos. O limite é 256 entradas e profundidade 8; `{}` é normalizado para `nil`. Os dados são copiados defensivamente e congelados recursivamente.
+`Attack.new({ CustomData = data })` aceita dados opcionais para consumidores de gameplay. O mesmo valor é exposto em `attack.CustomData` e `attack.OffensiveProperties.CustomData`. O conteúdo é opaco para a API: use tabelas simples serializáveis, sem metatables, ciclos, funções, Instances/userdata ou números não finitos. O limite é 256 valores (a tabela raiz conta, então até 255 chaves em uma tabela plana) e profundidade 8; `{}` é normalizado para `nil`. Os dados são copiados defensivamente e congelados recursivamente.
 
 Para fornecer valores específicos para uma execução sem alterar a definição, use o quarto argumento em formato de opções:
 
@@ -270,7 +380,7 @@ The following accessors exist in `src/shared/Core/World.lua`:
 
 | Area | Accessors |
 |---|---|
-| Entities / API | `CreateEntity`, `GetEntity`, `HasEntity`, `DestroyEntity`, `RespawnEntity`, `DisconnectPeer`, `AttachCharacter`, `DetachCharacter`, `ReattachCharacter`, `GetCharacterRoot`, `GetCharacterPart`, `GetEntities`, `GetCombatAPI`, `GetAPIContext`, `GetEvents`, `GetDiagnostics`, `GetDeterminismViolations`, `GetExecutionContext`, `GetExternalEffectGate`, `GetCombatStateSchema`, `RegisterCombatComponentFactory`, `RegisterCombatStateProvider`, `RegisterGameplayEventHandler`, `ScheduleGameplayEvent`, `ScheduleGameplayEventAfter`, `GetGameplayScheduler`, `CaptureCombatState`, `RestoreCombatState`, `HashCombatState`, `CompareCombatStates`, `SetCollisionWorld`, `GetCollisionWorld` |
+| Entities / API | `CreateEntity`, `GetEntity`, `HasEntity`, `DestroyEntity`, `RespawnEntity`, `DisconnectPeer`, `AttachCharacter`, `DetachCharacter`, `ReattachCharacter`, `GetCharacterRoot`, `GetCharacterPart`, `GetEntities`, `GetCombatAPI`, `GetAPIContext`, `GetEvents`, `GetDiagnostics`, `GetDeterminismViolations`, `GetExecutionContext`, `GetExternalEffectGate`, `GetCombatStateSchema`, `RegisterCombatComponentFactory`, `RegisterCombatStateProvider`, `RegisterGameplayEventHandler`, `RegisterGameplayActionEventHandler`, `ScheduleGameplayEvent`, `ScheduleGameplayEventAfter`, `GetGameplayScheduler`, `CaptureCombatState`, `RestoreCombatState`, `HashCombatState`, `CompareCombatStates`, `SetCollisionWorld`, `GetCollisionWorld` |
 | Simulation / collision | `GetSimulation`, `GetCollisionWorld`, `GetDamageResolver`, `GetStatusEffectResolver`, `GetReactionResolver`, `GetDefenseResolver`, `GetCombatResolver`, `GetMotionResolver` |
 | Collision pipeline data | `GetCombatResolutionEvents`, `GetCounterResults`, `GetDamageRequests`, `GetDamageEvents`, `GetHealthChangedEvents`, `GetDeathEvents`, `GetDefenseEvents`, `GetMotionResults` |
 | Protection / consequences | `GetProtectionResolver`, `GetProtectionResults`, `GetArmorResolver`, `GetArmorResults`, `GetGuardResolver`, `GetGuardEvents`, `GetGuardResults`, `GetHitstopResolver`, `GetTimeEffectResults` |
@@ -285,6 +395,8 @@ Some accessors return `nil` before an optional pipeline is supplied. In particul
 ## APIContext
 
 `world:GetCombatAPI()` and `world:GetAPIContext()` return the same World-owned `APIContext`. It exposes guarded entity operations (`GetEntity`, `CreateEntity`, `DestroyEntity`), event access/subscription, system lookup (`GetSystem`, `HasSystem`, `HasFeature`), named resolver getters, and Plugin lifecycle convenience methods. Methods return `APIResult` where implemented; a failed result includes an `APIError`.
+
+`APIContext:GetPlugin(id)` requires a non-empty string ID. It returns `InvalidArgument` for malformed IDs, `NotFound` for an unknown plugin, and `Destroyed` after the context is destroyed.
 
 `APIResult` fields are `Success`, `Value`, and `Error`; its type is discriminated by `Success`, so a failed result always has an `APIError`. `APIError` fields are `Code`, `Message`, `System`, `Frame`, and `Context`. Plugin resolver failures map to the stable code categories in [PUBLIC_API.md](PUBLIC_API.md); `APIError.fromResolverResult()` performs that mapping and preserves the resolver code/details in context. Expected validation/operation failures are results; malformed constructors and programmer contract violations may still raise assertions.
 

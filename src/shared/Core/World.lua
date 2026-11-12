@@ -918,6 +918,10 @@ function World:RegisterGameplayEventHandler(typeId, handler)
 	assert(self.Simulation, "World has no Simulation")
 	return self.Simulation:RegisterGameplayEventHandler(typeId, handler)
 end
+function World:RegisterGameplayActionEventHandler(typeId, handler)
+	assert(self.Simulation, "World has no Simulation")
+	return self.Simulation:RegisterGameplayActionEventHandler(typeId, handler)
+end
 function World:ScheduleGameplayEvent(frame, typeId, ownerId, parameters, intervalFrames)
 	assert(self.Simulation, "World has no Simulation")
 	return self.Simulation:ScheduleGameplayEvent(frame, typeId, ownerId, parameters, intervalFrames)

@@ -1,6 +1,6 @@
 --!strict
--- Public type contracts. Runtime values are intentionally empty; require this
--- module only for type imports from consumer code.
+-- Public type contracts. Runtime values are intentionally empty; consumers
+-- import these definitions with `type Types = require(path.CombatAPITypes)`.
 
 export type Primitive = nil | boolean | number | string
 export type SerializableValue = Primitive | { [string | number]: SerializableValue }
@@ -15,13 +15,14 @@ export type CombatEntity = {
 }
 export type Damage = number | { Amount: number, Type: string? }
 export type Defense = { CanBlock: boolean?, CanParry: boolean? }
+export type ResolvedDefense = { CanBlock: boolean, CanParry: boolean }
 
 export type OffensiveProperties = {
 	Damage: Damage?,
 	Hitstun: number,
 	HitstunFrames: number,
 	HasHitstun: boolean,
-	Defense: { CanBlock: boolean, CanParry: boolean },
+	Defense: ResolvedDefense,
 	Priority: number,
 	CanClash: boolean,
 	CustomData: CustomData?,
@@ -41,10 +42,7 @@ export type OffensivePropertiesOptions = {
 
 export type OffensivePropertiesConstructor = {
 	new: (options: OffensivePropertiesOptions?) -> OffensiveProperties,
-	WithCustomData: (
-		properties: OffensiveProperties,
-		customData: CustomData?
-	) -> OffensiveProperties,
+	WithCustomData: (properties: OffensiveProperties, customData: CustomData?) -> OffensiveProperties,
 }
 
 export type AttackOptions = {
@@ -72,7 +70,7 @@ export type Attack = {
 	CustomData: CustomData?,
 	Damage: Damage?,
 	Hitstun: number?,
-	Defense: { CanBlock: boolean, CanParry: boolean },
+	Defense: ResolvedDefense,
 	CanHit: ((any, any) -> boolean)?,
 }
 
@@ -85,6 +83,10 @@ export type AttackInstanceOptions = {
 	CustomDataOverrides: CustomData?,
 }
 
+-- The fourth constructor argument accepts either the legacy explicit ID or
+-- the options record. This preserves AttackInstance.new(..., 42) callers.
+export type AttackInstanceConstructorOptions = EntityId | AttackInstanceOptions
+
 export type AttackInstance = {
 	Id: EntityId,
 	Attack: Attack,
@@ -96,6 +98,7 @@ export type AttackInstance = {
 	State: string,
 	GetOffensiveProperties: (self: AttackInstance) -> OffensiveProperties,
 	Activate: (self: AttackInstance) -> AttackInstance,
+	GetOffensiveProperties: (self: AttackInstance) -> OffensiveProperties,
 	Finish: (self: AttackInstance) -> boolean,
 	Destroy: (self: AttackInstance) -> boolean,
 }
@@ -188,44 +191,6 @@ export type DamageAppliedPayload = {
 	RequestedAmount: number?,
 	AttackInstanceId: EntityId?,
 	CustomData: CustomData?,
-}
-
-export type Event = {
-	Type: string,
-	SimulationFrame: number?,
-	Frame: number?,
-	SourceSystem: string,
-	EntityId: EntityId?,
-	Version: number,
-	Sequence: number?,
-	EventId: string?,
-	ExecutionMode: string,
-	Payload: { [string]: any },
-	Context: APIContext?,
-	CustomData: CustomData?,
-}
-
-export type EventSubscription = {
-	Disconnect: (self: EventSubscription) -> boolean,
-	IsConnected: (self: EventSubscription) -> boolean,
-	GetId: (self: EventSubscription) -> number,
-}
-
-export type EventFilterOptions = {
-	Priority: number?,
-	Filter: { [string]: any }?,
-}
-
-export type EventBus = {
-	Subscribe: (
-		self: EventBus,
-		eventType: string,
-		callback: (event: Event, context: APIContext) -> (),
-		options: EventFilterOptions?
-	) -> (EventSubscription?, APIError?),
-	Dispatch: (self: EventBus, eventType: string, payload: { [string]: any }?, context: { [string]: any }?) -> (Event?, APIError?),
-	GetErrors: (self: EventBus) -> { APIError },
-	ClearErrors: (self: EventBus) -> EventBus,
 }
 
 export type AttackCatalog = {
@@ -388,32 +353,324 @@ export type CollisionWorld = {
 	GetHurtboxes: (self: CollisionWorld) -> { RegisteredHurtbox },
 }
 
-export type World = {
-	IdGenerator: IdGenerator,
-	CreateEntity: (self: World) -> CombatEntity,
-	GetEntity: (self: World, id: EntityId) -> CombatEntity?,
-	GetCombatAPI: (self: World) -> APIContext,
-	GetAPIContext: (self: World) -> APIContext,
-	Step: (self: World, deltaTime: number, frame: number, time: number) -> (),
-	SetCollisionWorld: (self: World, collisionWorld: CollisionWorld) -> (),
-	SetSimulation: (self: World, simulation: Simulation) -> Simulation,
-	GetSimulation: (self: World) -> Simulation?,
-	CaptureCombatState: (self: World) -> any,
-	RestoreCombatState: (self: World, snapshot: any, options: { [string]: any }?) -> (boolean, string?),
-	HashCombatState: (self: World, snapshot: any?) -> string,
-	Destroy: (self: World) -> boolean,
+export type EventFilterOptions = {
+	Priority: number?,
+	Filter: { [string]: any }?,
+	EntityId: EntityId?,
+	SourceSystem: string?,
+	AttackerId: EntityId?,
+	DefenderId: EntityId?,
+	Predicate: ((Event) -> boolean)?,
 }
 
-export type PluginHandle = {
+export type Event = {
+	Type: string,
+	SimulationFrame: number?,
+	Frame: number?,
+	SourceSystem: string,
+	EntityId: EntityId?,
+	Version: number,
+	Sequence: number?,
+	EventId: string?,
+	ExecutionMode: string,
+	Payload: { [string]: any },
+	Context: APIContext?,
+	CustomData: CustomData?,
+	[string]: any,
+}
+
+export type EventFilter = EventFilterOptions & {
+	Matches: (self: EventFilter, event: Event) -> boolean,
+}
+
+export type EventCallback = (event: Event, context: any) -> ()
+export type EventSubscription = {
+	Disconnect: (self: EventSubscription) -> boolean,
+	IsConnected: (self: EventSubscription) -> boolean,
+	GetId: (self: EventSubscription) -> number,
+}
+export type EventSubscriptionOptions = EventFilterOptions & {
+	Priority: number?,
+	Filter: EventFilterOptions?,
+}
+
+export type EventBus = {
+	Subscribe: (self: EventBus, eventType: string, callback: EventCallback, options: EventSubscriptionOptions?) -> (EventSubscription?, APIError?),
+	Unsubscribe: (self: EventBus, id: number) -> boolean,
+	Dispatch: (self: EventBus, eventType: string, payload: { [string]: any }?, context: { [string]: any }?) -> (Event?, APIError?),
+	GetErrors: (self: EventBus) -> { APIError },
+	ClearErrors: (self: EventBus) -> EventBus,
+	Destroy: (self: EventBus) -> boolean,
+}
+
+export type PluginDependency = string | {
+	PluginId: string,
+	MinVersion: string?,
+	Optional: boolean?,
+}
+
+export type PluginProfileOptions = {
 	Id: string,
+	Name: string,
+	Version: string,
+	Dependencies: { PluginDependency }?,
+	Capabilities: { string }?,
+	AutoStart: boolean?,
+	Priority: number?,
+	Scope: ("Gameplay" | "Presentation")?,
+}
+
+export type PluginProfile = {
+	Id: string,
+	Name: string,
+	Version: string,
+	Dependencies: { { PluginId: string, MinVersion: string?, Optional: boolean } },
+	Capabilities: { string },
+	AutoStart: boolean,
+	Priority: number,
+	Scope: "Gameplay" | "Presentation",
+}
+
+export type PluginLifecycleState =
+	"Registered" | "Initializing" | "Active" | "Stopping" | "Stopped" | "Failed"
+
+export type Plugin = {
+	Profile: PluginProfile,
+	Id: string,
+	Name: string,
+	Version: string,
+	Scope: "Gameplay" | "Presentation",
+	State: PluginLifecycleState,
+	Enabled: boolean?,
+	Failure: string?,
+	Context: PluginContext?,
+}
+
+export type PluginImplementation = {
+	Initialize: ((context: PluginContext, plugin: Plugin) -> boolean?)?,
+	Start: ((context: PluginContext, plugin: Plugin) -> boolean?)?,
+	Stop: ((context: PluginContext, plugin: Plugin) -> boolean?)?,
+}
+
+export type PluginCapability = {
+	Id: string,
+	Version: string,
+	Implementation: any?,
+	OwnerPluginId: string,
+}
+
+export type PluginRegistryView = {
+	Get: (self: PluginRegistryView, id: string) -> Plugin?,
+	Has: (self: PluginRegistryView, id: string) -> boolean,
+	List: (self: PluginRegistryView) -> { Plugin },
+	HasCapability: (self: PluginRegistryView, id: string) -> boolean,
+	GetCapability: (self: PluginRegistryView, id: string) -> PluginCapability?,
+	ListCapabilities: (self: PluginRegistryView) -> { PluginCapability },
+}
+
+export type PluginContextErrorCode =
+	"InvalidContext"
+	| "InvalidArgument"
+	| "InvalidCapabilityId"
+	| "InvalidCapabilityVersion"
+	| "CapabilityNotDeclared"
+	| "CapabilityConflict"
+	| "UnsupportedExtensionKind"
+
+export type PluginContext = {
+	GetWorld: (self: PluginContext) -> World?,
+	GetAPI: (self: PluginContext) -> APIContext?,
+	GetEventBus: (self: PluginContext) -> EventBus?,
+	GetRegistry: (self: PluginContext) -> PluginRegistryView?,
+	GetCapability: (self: PluginContext, id: string) -> PluginCapability?,
+	RegisterCapability: (self: PluginContext, id: string, implementation: any?, version: string?) -> (PluginCapability?, PluginContextErrorCode?),
+	Subscribe: (self: PluginContext, eventType: string, callback: (Event, APIContext, PluginContext) -> (), options: EventSubscriptionOptions?) -> (EventSubscription?, APIError | PluginContextErrorCode?),
+	Register: (self: PluginContext, kind: string, id: string, implementation: any?, version: string?) -> (PluginCapability?, PluginContextErrorCode?),
+	IsValid: (self: PluginContext) -> boolean,
 }
 
 export type PluginResolverResult = {
 	Success: boolean,
 	Code: string,
 	PluginId: string?,
-	Value: any?,
-	Details: any?,
+	Value: Plugin?,
+	Details: (string | { [string]: any })?,
+}
+
+export type SystemName =
+	"Simulation" | "Input" | "Collision" | "Damage" | "Defense"
+	| "CombatResolution" | "Motion" | "Guard" | "Combo" | "Juggle"
+	| "MovementState" | "Cancel" | "Character" | "Animation" | "Networking"
+	| "Prediction" | "Rollback" | "Authority" | "Armor" | "Protection" | "Hitstop" | "Plugins"
+
+export type World = {
+	IdGenerator: IdGenerator,
+	CreateEntity: (self: World) -> CombatEntity,
+	GetEntity: (self: World, id: EntityId) -> CombatEntity?,
+	DestroyEntity: (self: World, entityOrId: CombatEntity | EntityId) -> boolean,
+	GetCombatAPI: (self: World) -> APIContext,
+	GetAPIContext: (self: World) -> APIContext,
+	CurrentFrame: number?,
+	Destroying: boolean?,
+	ExecutionContext: string?,
+	Step: (self: World, deltaTime: number, frame: number?, time: number?) -> (),
+	SetCollisionWorld: (self: World, collisionWorld: CollisionWorld) -> (),
+	SetSimulation: (self: World, simulation: Simulation) -> Simulation,
+	GetSimulation: (self: World) -> Simulation?,
+	GetDeterminismViolations: (self: World) -> { DeterminismViolation },
+	RegisterGameplayEventHandler: (self: World, typeId: string, handler: (ScheduledGameplayEvent) -> ()) -> (boolean, string?),
+	RegisterGameplayActionEventHandler: (self: World, typeId: string, handler: (ActionGameplayEvent) -> ()) -> (boolean, string?),
+	CaptureCombatState: (self: World) -> any,
+	RestoreCombatState: (self: World, snapshot: any, options: { [string]: any }?) -> (boolean, string?),
+	HashCombatState: (self: World, snapshot: any?) -> string,
+	Destroy: (self: World) -> boolean,
+	[string]: any,
+}
+
+export type DeterministicRNG = {
+	NextNumber: (self: DeterministicRNG, minimum: number?, maximum: number?) -> number,
+	NextInteger: (self: DeterministicRNG, minimum: number, maximum: number) -> number,
+	GetState: (self: DeterministicRNG) -> any,
+	SetState: (self: DeterministicRNG, state: any) -> (),
+}
+
+export type FrameCommandBufferOptions = {
+	MaxCommandsPerFrame: number?,
+	HistorySize: number?,
+}
+
+export type DeterministicSchedulerOptions = {
+	CurrentFrame: number?,
+	MaxEvents: number?,
+}
+
+export type SimulationOptions = {
+	FixedDeltaTime: number?,
+	MaxStepsPerUpdate: number?,
+	Seed: number?,
+	RNG: DeterministicRNG?,
+	FrameCommandBuffer: FrameCommandBufferOptions?,
+	DeterministicScheduler: DeterministicSchedulerOptions?,
+}
+
+export type SimulationExecutionContext = "Normal" | "Replay" | "Rollback"
+
+export type DeterminismViolation = {
+	Sequence: number,
+	Frame: number?,
+	Operation: string,
+	Context: SimulationExecutionContext,
+	Details: string?,
+}
+
+export type DeterminismGuard = {
+	Check: (self: DeterminismGuard, operation: string, details: any?) -> (boolean, DeterminismViolation?),
+	AssertAllowed: (self: DeterminismGuard, operation: string, details: any?) -> boolean,
+	GetContext: (self: DeterminismGuard) -> SimulationExecutionContext,
+	IsForbidden: (self: DeterminismGuard, operation: string) -> boolean,
+	GetViolations: (self: DeterminismGuard) -> { DeterminismViolation },
+	ClearViolations: (self: DeterminismGuard) -> (),
+}
+
+export type ReplayFrame = {
+	Frame: number,
+	Inputs: { [string]: any },
+	StateHash: string,
+	ExternalFacts: { [string]: any }?,
+}
+
+export type ReplayDivergence = {
+	Reason: string,
+	ExpectedHash: string?,
+	ActualHash: string?,
+	ExpectedState: { [string]: any }?,
+	ActualState: { [string]: any }?,
+	ExpectedInputs: { [string]: any }?,
+	ActualInputs: { [string]: any }?,
+	ExpectedExternalFacts: { [string]: any }?,
+	ActualExternalFacts: { [string]: any }?,
+	ExpectedFrame: ReplayFrame?,
+	ActualFrame: ReplayFrame?,
+}
+
+export type ReplayRecordingOptions = {
+	Metadata: { [string]: any },
+	InitialState: { [string]: any },
+	ExternalFacts: { [string]: any }?,
+}
+
+export type ReplayRecording = {
+	Metadata: { [string]: any },
+	InitialState: { [string]: any },
+	ExternalFacts: { [string]: any }?,
+	Frames: { ReplayFrame },
+	AppendFrame: (self: ReplayRecording, frame: number, inputs: { [string]: any }?, stateHash: string, externalFacts: { [string]: any }?) -> ReplayFrame,
+	Capture: (self: ReplayRecording) -> { [string]: any },
+	GetFrame: (self: ReplayRecording, frame: number) -> (ReplayFrame?, string?),
+	GetFrameRange: (self: ReplayRecording, firstFrame: number, lastFrame: number) -> ({ ReplayFrame }?, string?),
+	FindFirstDivergence: (self: ReplayRecording, other: ReplayRecording) -> (number?, string | ReplayDivergence?),
+}
+
+export type ScheduledGameplayEvent = {
+	Id: number,
+	Frame: number,
+	Type: string,
+	OwnerId: EntityId?,
+	Parameters: { [string]: any },
+	Order: number,
+	IntervalFrames: number?,
+}
+
+export type ActionGameplayEvent = {
+	Type: string,
+	Frame: number,
+	OwnerId: EntityId,
+	Parameters: { [string]: any },
+	ActionId: EntityId,
+	ActionDefinitionId: EntityId,
+	EventIndex: number,
+}
+
+export type Simulation = {
+	World: World,
+	Frame: number,
+	FixedDeltaTime: number,
+	MaxStepsPerUpdate: number,
+	Accumulator: number,
+	LastCompletedFrame: number,
+	ExecutionContext: SimulationExecutionContext,
+	GetWorld: (self: Simulation) -> World,
+	GetAlpha: (self: Simulation) -> number,
+	GetPendingStepCount: (self: Simulation) -> number,
+	GetGameTime: (self: Simulation) -> any,
+	GetScheduler: (self: Simulation) -> any,
+	GetDeterministicScheduler: (self: Simulation) -> any,
+	GetFrameCommandBuffer: (self: Simulation) -> any,
+	Step: (self: Simulation) -> (),
+	Update: (self: Simulation, deltaTime: number) -> number,
+	SetExecutionContext: (self: Simulation, context: SimulationExecutionContext) -> Simulation,
+	RegisterCommandHandler: (self: Simulation, commandType: string, handler: (Simulation, any) -> ()) -> (boolean, string?),
+	QueueCommand: (self: Simulation, command: { [string]: any }) -> (any?, boolean | string?, string?),
+	RegisterScheduledHandler: (self: Simulation, typeId: string, handler: (ScheduledGameplayEvent) -> ()) -> (boolean, string?),
+	RegisterGameplayEventHandler: (self: Simulation, typeId: string, handler: (ScheduledGameplayEvent) -> ()) -> (boolean, string?),
+	RegisterGameplayActionEventHandler: (self: Simulation, typeId: string, handler: (ActionGameplayEvent) -> ()) -> (boolean, string?),
+	ScheduleEvent: (self: Simulation, frame: number, typeId: string, ownerId: EntityId?, parameters: { [string]: any }?, intervalFrames: number?) -> (number?, string?),
+	ScheduleGameplayEvent: (self: Simulation, frame: number, typeId: string, ownerId: EntityId?, parameters: { [string]: any }?, intervalFrames: number?) -> (number?, string?),
+	ScheduleGameplayEventAfter: (self: Simulation, delayFrames: number, typeId: string, ownerId: EntityId?, parameters: { [string]: any }?, intervalFrames: number?) -> (number?, string?),
+	GetGameplayScheduler: (self: Simulation) -> any,
+	GetLegacyScheduler: (self: Simulation) -> any,
+	GetDeterminismGuard: (self: Simulation) -> DeterminismGuard,
+	GetRNG: (self: Simulation) -> DeterministicRNG,
+	GetExecutionContext: (self: Simulation) -> SimulationExecutionContext,
+	AssertDeterministicOperation: (self: Simulation, operation: string, details: any?) -> boolean,
+	CanRestoreRollbackFrame: (self: Simulation) -> boolean,
+	CaptureState: (self: Simulation) -> { [string]: any },
+	RestoreState: (self: Simulation, snapshot: { [string]: any }) -> (boolean, string?),
+	CaptureRecoveryState: (self: Simulation) -> { [string]: any },
+	ValidateRecoveryState: (self: Simulation, state: any) -> (boolean, string?),
+	RestoreRecoveryState: (self: Simulation, state: any) -> (boolean, string?),
+	GetKernelStateHash: (self: Simulation) -> string,
+	RestoreRollbackFrame: (self: Simulation, frame: number, rngState: any, accumulator: number?, schedulerNextId: number?, schedulerNextOrder: number?) -> boolean,
 }
 
 export type APIContext = {
@@ -422,27 +679,17 @@ export type APIContext = {
 	Destroyed: boolean,
 	GetWorld: (self: APIContext) -> World?,
 	GetEvents: (self: APIContext) -> EventBus,
-	Subscribe: (
-		self: APIContext,
-		eventType: string,
-		callback: (event: Event, context: APIContext) -> (),
-		options: EventFilterOptions?
-	) -> (EventSubscription?, APIError?),
-	On: (
-		self: APIContext,
-		eventType: string,
-		callback: (event: Event, context: APIContext) -> (),
-		options: EventFilterOptions?
-	) -> (EventSubscription?, APIError?),
+	Subscribe: (self: APIContext, eventType: string, callback: EventCallback, options: EventSubscriptionOptions?) -> (EventSubscription?, APIError?),
+	On: (self: APIContext, eventType: string, callback: EventCallback, options: EventSubscriptionOptions?) -> (EventSubscription?, APIError?),
 	GetEntity: (self: APIContext, id: EntityId) -> APIResult<CombatEntity>,
 	CreateEntity: (self: APIContext) -> APIResult<CombatEntity>,
-	DestroyEntity: (self: APIContext, entity: CombatEntity | EntityId) -> APIResult<boolean>,
-	GetSystem: (self: APIContext, name: string) -> APIResult<any>,
-	HasSystem: (self: APIContext, name: string) -> boolean,
+	DestroyEntity: (self: APIContext, entityOrId: CombatEntity | EntityId) -> APIResult<boolean>,
+	GetSystem: (self: APIContext, name: SystemName) -> APIResult<any>,
+	HasSystem: (self: APIContext, name: SystemName) -> boolean,
 	HasFeature: (self: APIContext, name: string) -> boolean,
+	GetInputResolver: (self: APIContext) -> any?,
 	GetSimulation: (self: APIContext) -> Simulation?,
 	GetCollisionWorld: (self: APIContext) -> CollisionWorld?,
-	GetInputResolver: (self: APIContext) -> any?,
 	GetDamageResolver: (self: APIContext) -> any?,
 	GetDefenseResolver: (self: APIContext) -> any?,
 	GetCombatResolver: (self: APIContext) -> any?,
@@ -462,12 +709,8 @@ export type APIContext = {
 	GetRollbackResolver: (self: APIContext) -> any?,
 	GetAuthorityResolver: (self: APIContext) -> any?,
 	GetPluginResolver: (self: APIContext) -> any?,
-	RegisterPlugin: (
-		self: APIContext,
-		plugin: { [string]: any },
-		implementation: { [string]: any }?
-	) -> APIResult<PluginResolverResult>,
-	GetPlugin: (self: APIContext, id: string) -> APIResult<PluginHandle>,
+	RegisterPlugin: (self: APIContext, plugin: Plugin | PluginProfile | PluginProfileOptions, implementation: PluginImplementation?) -> APIResult<PluginResolverResult>,
+	GetPlugin: (self: APIContext, id: string) -> APIResult<Plugin>,
 	StartPlugin: (self: APIContext, id: string) -> APIResult<PluginResolverResult>,
 	StopPlugin: (self: APIContext, id: string) -> APIResult<PluginResolverResult>,
 	UnregisterPlugin: (self: APIContext, id: string) -> APIResult<PluginResolverResult>,
@@ -480,7 +723,122 @@ export type APIContextConstructor = {
 	new: (world: World) -> APIContext,
 }
 
-export type OpaquePublicModule = { [string]: any }
+export type APIErrorModule = {
+	Code: { [string]: APIErrorCode },
+	isCode: (value: any) -> boolean,
+	new: (code: APIErrorCode, message: string, system: string?, frame: number?, context: { [string]: any }?) -> APIError,
+	fromResolverResult: (result: PluginResolverResult, system: string?, frame: number?) -> APIError,
+}
+
+export type APIResultModule = {
+	new: <T>(success: boolean, value: T?, err: APIError?) -> APIResult<T>,
+	is: (value: any) -> boolean,
+}
+
+export type OffensivePropertiesModule = {
+	CustomDataLimits: { MaxEntries: number, MaxDepth: number },
+	NormalizeCustomData: (value: any, label: string) -> CustomData?,
+	CanonicalizeCustomData: (customData: CustomData?) -> string?,
+	new: (options: OffensivePropertiesOptions?) -> OffensiveProperties,
+	WithCustomData: (properties: OffensiveProperties, customData: CustomData?) -> OffensiveProperties,
+}
+
+export type PluginModule = {
+	new: (profile: PluginProfile | PluginProfileOptions, implementation: PluginImplementation?) -> Plugin,
+}
+
+export type PluginCapabilityModule = {
+	new: (data: { Id: string, Version: string?, Implementation: any?, OwnerPluginId: string }) -> PluginCapability,
+}
+
+export type PluginContextModule = {
+	new: (resolver: any, plugin: Plugin) -> PluginContext,
+}
+
+export type PluginProfileModule = {
+	Scope: { Gameplay: "Gameplay", Presentation: "Presentation" },
+	new: (data: PluginProfileOptions) -> PluginProfile,
+}
+
+export type PluginStateModule = {
+	Registered: "Registered",
+	Initializing: "Initializing",
+	Active: "Active",
+	Stopping: "Stopping",
+	Stopped: "Stopped",
+	Failed: "Failed",
+}
+
+export type SimulationModule = {
+	new: (world: World, options: SimulationOptions?) -> Simulation,
+}
+
+export type ReplayRecordingModule = {
+	Version: number,
+	new: (options: ReplayRecordingOptions) -> ReplayRecording,
+	FromSnapshot: (snapshot: any, migrations: { [number]: (any) -> any }?) -> (ReplayRecording?, string?),
+}
+
+export type AttackModule = {
+	new: (options: AttackOptions?) -> Attack,
+}
+
+export type AttackInstanceModule = {
+	new: (attack: Attack, ownerEntity: any?, idGenerator: any?, options: AttackInstanceConstructorOptions?) -> AttackInstance,
+}
+
+export type CombatActionGameplayEventDefinition = {
+	FrameOffset: number,
+	Type: string,
+	Parameters: { [string]: any },
+}
+
+export type CombatActionGameplayEventOptions = {
+	FrameOffset: number,
+	Type: string,
+	Parameters: { [string]: any }?,
+}
+
+export type CombatActionDefinitionOptions = {
+	Id: EntityId,
+	StartupFrames: number?,
+	ActiveFrames: number?,
+	RecoveryFrames: number?,
+	DurationModel: string?,
+	Cancelable: boolean?,
+	Tags: { string }?,
+	Requirements: {
+		Resources: { [string]: number }?,
+		RequiredStatusTags: { string }?,
+		ForbiddenStatusTags: { string }?,
+		MovementStates: { string }?,
+	}?,
+	Costs: { Resources: { [string]: number } }?,
+	GameplayEvents: { CombatActionGameplayEventOptions }?,
+}
+
+export type CombatActionDefinition = {
+	Version: number,
+	Id: EntityId,
+	StartupFrames: number,
+	ActiveFrames: number,
+	RecoveryFrames: number,
+	DurationModel: string,
+	Cancelable: boolean,
+	Tags: { string },
+	Requirements: { [string]: any },
+	Costs: { Resources: { [string]: number } },
+	GameplayEvents: { CombatActionGameplayEventDefinition },
+	GetTotalFrames: (self: CombatActionDefinition) -> number?,
+}
+
+export type CombatActionDefinitionModule = {
+	Version: number,
+	DurationModel: { [string]: string },
+	new: (options: CombatActionDefinitionOptions?) -> CombatActionDefinition,
+}
+
+export type CollisionTopologyCatalogModule = CollisionTopologyCatalogConstructor
 
 export type CombatAPI = {
 	Name: string,
@@ -492,11 +850,7 @@ export type CombatAPI = {
 	GetAPIContext: (world: World) -> APIContext?,
 	IsWorld: (value: any) -> boolean,
 	GetPluginResolver: (world: World) -> any?,
-	RegisterPlugin: (
-		world: World,
-		plugin: { [string]: any },
-		implementation: { [string]: any }?
-	) -> APIResult<PluginResolverResult>,
+	RegisterPlugin: (world: World, plugin: Plugin | PluginProfile | PluginProfileOptions, implementation: PluginImplementation?) -> APIResult<PluginResolverResult>,
 	StartPlugin: (world: World, id: string) -> APIResult<PluginResolverResult>,
 	StopPlugin: (world: World, id: string) -> APIResult<PluginResolverResult>,
 	UnregisterPlugin: (world: World, id: string) -> APIResult<PluginResolverResult>,
@@ -506,57 +860,25 @@ export type CombatAPI = {
 	EventTypes: EventTypes,
 	APIResult: APIResultConstructor,
 	APIError: APIErrorConstructor,
-	Simulation: SimulationConstructor,
+	Simulation: SimulationModule,
 	Attack: AttackConstructor,
 	AttackInstance: AttackInstanceConstructor,
 	AttackCatalog: AttackCatalogConstructor,
-	CollisionTopologyCatalog: CollisionTopologyCatalogConstructor,
 	CollisionWorld: CollisionWorldConstructor,
 	Hitbox: HitboxConstructor,
 	Hurtbox: HurtboxConstructor,
-	OffensiveProperties: OffensivePropertiesConstructor,
-	Plugin: OpaquePublicModule,
-	PluginProfile: OpaquePublicModule,
-	PluginState: OpaquePublicModule,
-	CombatActionProfiles: OpaquePublicModule,
-	CombatActionCatalog: OpaquePublicModule,
-	ReplayRecording: OpaquePublicModule,
-	RobloxRemoteEventAdapter: OpaquePublicModule,
-}
-
-export type CollisionWorldConstructor = {
-	new: (world: World?) -> CollisionWorld,
-}
-
-export type HitboxConstructor = {
-	new: (options: HitboxOptions?) -> Hitbox,
-}
-
-export type HurtboxConstructor = {
-	new: (options: HurtboxOptions?) -> Hurtbox,
-}
-
-export type SimulationOptions = {
-	Seed: number?,
-	FixedDeltaTime: number?,
-	MaxStepsPerUpdate: number?,
-	RNG: { [string]: any }?,
-	DeterministicScheduler: { [string]: any }?,
-	FrameCommandBuffer: { [string]: any }?,
-}
-
-export type Simulation = {
-	World: World,
-	Frame: number,
-	FixedDeltaTime: number,
-	MaxStepsPerUpdate: number,
-	Step: (self: Simulation) -> (),
-	Update: (self: Simulation, deltaTime: number) -> number,
-	CaptureState: (self: Simulation) -> any,
-}
-
-export type SimulationConstructor = {
-	new: (world: World, options: SimulationOptions?) -> Simulation,
+	Plugin: PluginModule,
+	PluginCapability: PluginCapabilityModule,
+	PluginContext: PluginContextModule,
+	PluginProfile: PluginProfileModule,
+	PluginState: PluginStateModule,
+	CombatActionProfiles: { [string]: any },
+	CombatActionDefinition: CombatActionDefinitionModule,
+	CombatActionCatalog: { [string]: any },
+	ReplayRecording: ReplayRecordingModule,
+	RobloxRemoteEventAdapter: { [string]: any },
+	CollisionTopologyCatalog: CollisionTopologyCatalogModule,
+	OffensiveProperties: OffensivePropertiesModule,
 }
 
 export type CustomDataConsumerAPI = CombatAPI

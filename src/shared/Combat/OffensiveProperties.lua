@@ -1,41 +1,62 @@
+--!strict
+
+local Types = require(script.Parent.Parent.CombatAPITypes)
 local Damage = require(script.Parent.Damage)
 local Serializer = require(script.Parent.Parent.Simulation.StateSerializer)
 
 type CombatTypes = require(script.Parent.Parent.CombatAPITypes)
+type CustomData = Types.CustomData
+type DamageValue = Types.Damage
+type OffensivePropertiesType = Types.OffensiveProperties
+type OffensivePropertiesOptions = Types.OffensivePropertiesOptions
+type OffensivePropertiesModule = Types.OffensivePropertiesModule
+type Limits = { MaxEntries: number, MaxDepth: number }
 
 export type Properties = CombatTypes.OffensiveProperties
 
-local OffensiveProperties = {}
+local OffensiveProperties: OffensivePropertiesModule = {}
 
-local function isFiniteNumber(value)
+local function isFiniteNumber(value: any): boolean
 	return type(value) == "number" and value == value
 		and value > -math.huge and value < math.huge
 end
 
-local function freeze(value)
-	if not table.isfrozen(value) then
+local function freeze<T>(value: T): T
+	if type(value) == "table" and not table.isfrozen(value) then
 		table.freeze(value)
 	end
 	return value
 end
 
-local CUSTOM_DATA_LIMITS = { MaxEntries = 256, MaxDepth = 8 }
+local CUSTOM_DATA_LIMITS: Limits = table.freeze({ MaxEntries = 256, MaxDepth = 8 })
 
-local function normalizeCustomData(value, label)
+local function normalizeCustomData(value: any, label: string): CustomData?
 	if value == nil then return nil end
 	assert(type(value) == "table" and getmetatable(value) == nil,
 		label .. " must be a plain table or nil")
 	local ok, clone = pcall(Serializer.CloneSerializable, value, CUSTOM_DATA_LIMITS)
 	assert(ok, label .. " must be plain serializable data: " .. tostring(clone))
 	if next(clone) == nil then return nil end
-	return Serializer.Freeze(clone)
+	return Serializer.Freeze(clone) :: CustomData
 end
 
-local function normalizeDamage(value)
+-- Serializer.Serialize conta chaves e valores, enquanto CloneSerializable conta so valores. Um dado ja
+-- validado com N valores tem no maximo N - 1 chaves, ou seja, ate 2N - 1 entradas ao serializar.
+local CUSTOM_DATA_CANONICAL_LIMITS: Limits = table.freeze({
+	MaxEntries = CUSTOM_DATA_LIMITS.MaxEntries * 2,
+	MaxDepth = CUSTOM_DATA_LIMITS.MaxDepth,
+})
+
+local function canonicalizeCustomData(customData: CustomData?): string?
+	if customData == nil then return nil end
+	return Serializer.Serialize(customData, CUSTOM_DATA_CANONICAL_LIMITS)
+end
+
+local function normalizeDamage(value: DamageValue?): DamageValue?
 	if value == nil then
 		return nil
 	elseif type(value) == "number" then
-		return freeze(Damage.new({ Amount = value }))
+		return freeze(Damage.new({ Amount = value })) :: DamageValue
 	end
 
 	assert(type(value) == "table" and isFiniteNumber(value.Amount) and value.Amount >= 0,
@@ -43,12 +64,12 @@ local function normalizeDamage(value)
 	if getmetatable(value) == Damage then
 		assert(type(value.Type) == "string" and value.Type ~= "",
 			"OffensiveProperties Damage Type must be a non-empty string")
-		return freeze(value)
+		return freeze(value) :: DamageValue
 	end
-	return freeze(Damage.new({ Amount = value.Amount, Type = value.Type }))
+	return freeze(Damage.new({ Amount = value.Amount, Type = value.Type })) :: DamageValue
 end
 
-function OffensiveProperties.new(options)
+local function new(options: OffensivePropertiesOptions?): OffensivePropertiesType
 	if options == nil then
 		options = {}
 	end
@@ -112,7 +133,10 @@ function OffensiveProperties.new(options)
 	})
 end
 
-function OffensiveProperties.WithCustomData(properties, customData)
+local function withCustomData(
+	properties: OffensivePropertiesType,
+	customData: CustomData?
+): OffensivePropertiesType
 	assert(type(properties) == "table", "WithCustomData expects OffensiveProperties")
 	assert(customData == nil or (type(customData) == "table" and table.isfrozen(customData)),
 		"WithCustomData expects nil or frozen CustomData table")
@@ -120,5 +144,13 @@ function OffensiveProperties.WithCustomData(properties, customData)
 	derived.CustomData = customData
 	return table.freeze(derived)
 end
+
+local OffensiveProperties: OffensivePropertiesModule = {
+	CustomDataLimits = CUSTOM_DATA_LIMITS,
+	NormalizeCustomData = normalizeCustomData,
+	CanonicalizeCustomData = canonicalizeCustomData,
+	new = new,
+	WithCustomData = withCustomData,
+}
 
 return OffensiveProperties

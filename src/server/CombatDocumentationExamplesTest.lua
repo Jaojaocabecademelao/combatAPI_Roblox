@@ -18,7 +18,7 @@ end
 
 check(CombatAPI.Version == 1 and CombatAPI.Contracts.NetworkMessage == 1
 	and CombatAPI.Contracts.CombatActionDefinition == 2
-	and CombatAPI.Contracts.CombatActionCatalog == 1
+	and CombatAPI.Contracts.CombatActionCatalog == 2
 	and CombatAPI.Contracts.ReplayRecording == 1,
 	"Public contract versions are exposed")
 

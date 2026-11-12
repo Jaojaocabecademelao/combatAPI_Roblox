@@ -56,7 +56,8 @@ local documentedModules = {
 	"Combat/RollbackProfile", "Combat/RollbackResolver", "Combat/RollbackResult", "Combat/AuthorityComponent",
 	"Combat/AuthorityProfile", "Combat/AuthorityResolver", "Combat/AuthorityResult", "Events/EventBus",
 	"Events/EventTypes", "Events/APIContext", "Events/APIResult", "Events/APIError",
-	"Events/ExternalFactJournal", "Plugins/Plugin", "Plugins/PluginProfile", "Plugins/PluginResolver", "Plugins/PluginContext",
+	"Events/ExternalFactJournal", "Plugins/Plugin", "Plugins/PluginProfile", "Plugins/PluginResolver",
+	"Plugins/PluginContext", "Plugins/PluginVersion",
 }
 for _, path in ipairs(documentedModules) do
 	local moduleScript = moduleAt(path)
@@ -71,7 +72,9 @@ for _, method in ipairs({ "CreateWorld", "GetContext", "GetAPIContext", "IsWorld
 	"RegisterPlugin", "StartPlugin", "StopPlugin", "EnablePlugin", "DisablePlugin", "UnregisterPlugin" }) do
 	check(type(CombatAPI[method]) == "function", "Documented CombatAPI method exists: " .. method)
 end
-for _, export in ipairs({ "APIContext", "EventTypes", "APIResult", "APIError", "Plugin", "PluginProfile", "PluginState" }) do
+for _, export in ipairs({ "APIContext", "EventTypes", "APIResult", "APIError", "Plugin", "PluginCapability",
+	"PluginContext", "PluginProfile", "PluginState", "Simulation", "CombatActionDefinition",
+	"CollisionTopologyCatalog" }) do
 	check(CombatAPI[export] ~= nil, "Documented CombatAPI export exists: " .. export)
 end
 check(CombatAPI.CombatActionCatalog ~= nil and CombatAPI.ReplayRecording ~= nil,
@@ -84,6 +87,7 @@ local World = require(Shared.Core.World)
 for _, method in ipairs({
 	"CreateEntity", "GetEntity", "HasEntity", "DestroyEntity", "GetEntities", "GetEvents", "GetCombatAPI",
 	"GetAPIContext", "GetPluginResolver", "SetCollisionWorld", "GetCollisionWorld", "GetSimulation", "SetSimulation",
+	"RegisterGameplayEventHandler", "RegisterGameplayActionEventHandler",
 	"GetDamageResolver", "GetReactionResolver", "GetDefenseResolver", "GetCombatResolver", "GetCombatResolutionEvents",
 	"GetCounterResults", "GetMotionResolver", "GetMotionResults", "GetDamageRequests", "GetDamageEvents",
 	"GetHealthChangedEvents", "GetDeathEvents", "GetDefenseEvents", "GetHitstopResolver", "GetTimeEffectResults",
@@ -108,7 +112,7 @@ local documentedTests = {
 	"SimulationTest.lua", "CombatDeterminismTest.lua", "CoreTest.lua",
 	"CombatTest.lua", "CombatActionProfilesTest.lua", "CombatAnimationTest.lua",
 	"CombatArmorTest.lua", "CombatAttackCatalogRollbackTest.lua",
-	"CombatAttackCustomDataTest.lua", "CombatAttackPropertiesTest.lua", "CombatAuthorityTest.lua",
+	"CombatAttackCustomDataTest.lua", "CombatAttackPropertiesTest.lua", "CombatAPITypesTest.lua", "CombatAuthorityTest.lua",
 	"CombatCancelRollbackIntegrationTest.lua", "CombatCancelTest.lua",
 	"CombatCharacterTest.lua", "CombatCollisionRollbackTest.lua",
 	"CombatComboRollbackTest.lua", "CombatComboTest.lua",
@@ -122,7 +126,7 @@ local documentedTests = {
 	"CombatInputTest.lua", "CombatJuggleRollbackTest.lua",
 	"CombatMotionTest.lua", "CombatMovementComponentsRollbackTest.lua",
 	"CombatMovementStateTest.lua", "CombatNetworkingTest.lua",
-	"CombatPipelineTest.lua", "CombatPluginTest.lua",
+	"CombatPipelineTest.lua", "CombatPluginTest.lua", "CombatPluginErrorMappingTest.lua",
 	"CombatPredictionTest.lua", "CombatProtectionTest.lua",
 	"CombatReactionResolverRollbackTest.lua", "CombatReactionTest.lua",
 	"CombatReconciliationTest.lua", "CombatReplayRecordingTest.lua",

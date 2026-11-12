@@ -49,6 +49,18 @@ local oldManifest = { Version = 1, Entries = { {
 } } }
 assert(not customCatalog:ValidateManifest(oldManifest), "Manifest v1 must reject definitions with CustomData")
 
+-- Tudo o que Attack.new aceita dentro dos limites tambem precisa registrar e validar no catalogo.
+local wideData = {}
+for index = 1, 255 do wideData["K" .. tostring(index)] = index end
+local wideCatalog = AttackCatalog.new()
+assert(pcall(function() wideCatalog:Register(Attack.new({ Id = "wide.v1", CustomData = wideData }), 1) end),
+	"CustomData accepted by Attack.new must also register in the catalog")
+assert(wideCatalog:ValidateManifest(wideCatalog:CaptureManifest()), "Wide CustomData manifest must validate")
+local deepCatalog = AttackCatalog.new()
+assert(pcall(function()
+	deepCatalog:Register(Attack.new({ Id = "deep.v1", CustomData = { A = { B = { C = { D = { E = { F = { G = { H = 1 } } } } } } } } }), 1)
+end), "Maximum-depth CustomData must register in the catalog")
+
 local mismatch = {
 	Version = 1,
 	Entries = {

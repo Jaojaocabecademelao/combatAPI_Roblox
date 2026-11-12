@@ -1,6 +1,6 @@
 # Status da implementação — CustomData
 
-Data da revisão: 2026-11-11
+Data da revisão: 2026-11-12
 
 Este relatório acompanha o plano `combatapi-customdata-plano.md`. Ele distingue a
 presença estática de código/testes da aprovação em runtime. Nenhuma fase que
@@ -67,25 +67,28 @@ essas duas execuções não são suficientes para concluir regressão ou ganho.
 ## Pendências para fechar as fases
 
 A correção da Simulation pública foi confirmada por `CombatPublicSurfaceTest`,
-e o usuário confirmou que a suíte completa do código atual terminou sem erros.
+e o usuário confirmou uma execução sem erros da suíte completa então existente.
 O teste e o exemplo registram uma factory versionada pela
 `CollisionTopologyCatalog` pública, necessária para reconstruir a Hitbox durante
-o rollback. Para fechar a validação geral, investigar a duplicação no place,
-executar
+o rollback. Essa confirmação antecede algumas alterações posteriores e não
+substitui a validação delas. Para fechar a validação geral, investigar a
+duplicação no place e os avisos de asset, executar o exemplo de consumidor como
+script independente, repetir
 `CombatMultiplayerSmokeTest.server.lua` com dois clientes e obter uma linha de
 base pré-CustomData do `CombatStabilizationBenchmark.server.lua` com os mesmos
-atributos e ambiente.
+atributos e ambiente. O smoke multiplayer foi confirmado pelo usuário como
+concluído sem erros, mas sem registro do número de clientes.
 
 
 ## Continuação do roadmap (Etapas A a C)
 
 | Etapa | Estado | Evidência / pendência |
 |---|---|---|
-| A — Consumidor de referência | Aprovado pelo usuário no Studio | `docs/examples/CustomDataConsumer.server.lua` e `CombatCustomDataConsumerTest.lua` usam somente o facade `CombatAPI`, incluindo o `CollisionTopologyCatalog` versionado para restauração. O usuário confirmou que a suíte completa do código atual terminou sem erros; a cópia do teste anexada nesta conversa é anterior a essa implementação. |
-| B — Contrato estável | Parcial, em andamento | Política SemVer/depreciação, fronteira público/interno e superfície da API documentadas. Tipos públicos agora descrevem construtores de consumidor, eventos, APIContext, resultados/erros, colisão e rollback; os módulos de fachada exportam aliases dos contratos compartilhados. O mapeamento de falhas de plugins para códigos estáveis também foi implementado. Ainda faltam a análise Luau, fechar contratos sem `any` para todos os módulos exportados e executar os novos testes de mapeamento de erro no Studio. |
-| C — Infraestrutura | Suíte completa aprovada pelo usuário; pendências de ambiente | O usuário confirmou a execução sem erros da suíte completa atual. O runner deduplica módulos e bloqueia inicialização repetida. O smoke de dois clientes e a análise da origem de módulos duplicados seguem pendentes. |
+| A — Consumidor de referência | Parcial; fluxo e regressão implementados | `docs/examples/CustomDataConsumer.server.lua` usa exports públicos para ataque, override, catálogo, hitbox e snapshot/restore. O exemplo registra a hitbox diretamente no `CollisionWorld`, e `CombatPublicSurfaceTest` cobre a restauração do override e da geometria. A suíte anterior foi confirmada sem erros pelo usuário, mas o exemplo independente e as alterações posteriores ainda precisam de execução no Studio. |
+| B — Contrato estável | Implementação ampliada; validação incompleta | `PUBLIC_API.md` define SemVer/depreciação e fronteira público-interno; `CombatAPITypes` cobre facade, eventos, propriedades e plugins; `ResolverErrorMap` centraliza resultados do resolver. A análise `luau-lsp` permanece indisponível localmente, e os testes de mapeamento de erro precisam de validação no Studio. |
+| C — Infraestrutura | Runner/CI implementados; validação parcial | O usuário confirmou execuções anteriores da suíte e do smoke sem erros, sem logs/contagem atuais. Investigar a origem de módulos duplicados no place e avisos de asset; CI não executa testes de runtime. |
 
-A prioridade da Etapa D permanece pendente (decisão D8). As Etapas A e B continuam pré-requisitos antes de iniciar novas capacidades.
+A decisão D8 foi resolvida pelo usuário: opção (b), aprofundar capacidades antes de divulgar. A execução independente do consumidor da Etapa A continua pendente; o primeiro incremento de D foi implementado por solicitação do usuário, mas não será considerado validado até a execução Studio correspondente.
 
 
 ## Continuação — contrato público (11 nov 2026)
@@ -134,4 +137,250 @@ As falhas de plugins agora mantêm o código específico no resultado do resolve
 - A lista de inclusão limita o pacote a `/src/init.lua` e `/src/shared/**`; os scripts de teste e o código de servidor não fazem parte do pacote compartilhado.
 - O pacote está marcado como `private = true`. Isso permite validar a estrutura sem publicar nem presumir que o escopo Wally esteja reservado ao proprietário.
 - CI gera um ZIP de prévia com `wally package`; isso valida o empacotamento, não a instalação num jogo consumidor nem a publicação no registry.
-- O runner central executa os módulos `*Test.lua` sequencialmente no Studio. `CombatMultiplayerSmokeTest.server.lua` permanece manual e separado por exigir dois clientes. O usuário confirmou a suíte de 62 módulos sem erros; CI não executa nem declara testes de runtime aprovados.
+- O runner central executa os módulos `*Test.lua` sequencialmente no Studio.
+  `CombatMultiplayerSmokeTest.server.lua` permanece manual, pois exige dois
+  clientes. O usuário confirmou uma suíte de 62 módulos sem erros antes das
+  alterações posteriores; o runner e as alterações mais recentes ainda precisam
+  de validação no Roblox Studio. CI não declara testes de runtime aprovados.
+
+
+## Revisão posterior — limites e canônico do catálogo (sem execução no Studio)
+
+Alterações desta revisão: `OffensiveProperties.CustomDataLimits` e `OffensiveProperties.NormalizeCustomData` passam a ser a fonte única de limites/normalização (reutilizada por `AttackInstance`, `AttackCatalog` e `CollisionWorld`); `AttackCatalog:Register` passa a usar `OffensiveProperties.CanonicalizeCustomData`, corrigindo a rejeição de `CustomData` com 128 a 255 chaves planas aceito por `Attack.new`; testes de fronteira foram adicionados a `CombatAttackCustomDataTest` e `CombatAttackCatalogRollbackTest`.
+
+Verificação realizada fora do Studio: 58 dos 61 módulos `*Test.lua` passaram num harness Luau com stubs mínimos de `Vector3`/`CFrame`, com o mesmo resultado antes e depois da alteração. `CombatAuthorityTest`, `CombatDocumentationTest` e `CombatTest` não rodam nesse harness (exigem `Instance.new`, a árvore do DataModel e APIs de `CFrame` não simuladas) e não foram avaliados. O novo teste do catálogo falha sem a correção e passa com ela. **A suíte completa precisa ser executada novamente no Roblox Studio antes de considerar esta revisão validada.**
+
+
+## Revisão posterior — códigos de erro de plugin (sem execução no Studio)
+
+Etapa B (mapeamento específico dos códigos de erro): falhas de plugin do facade `CombatAPI` e do `APIContext` deixam de ser sempre `InvalidOperation` e passam por `Events/ResolverErrorMap` (tabela em `docs/PUBLIC_API.md`; código original preservado em `Error.Context.ResolverCode`). Os códigos de capability (`CapabilityConflict`, `CapabilityNotFound`, `CapabilityNotDeclared`, `InvalidCapabilityId`, `InvalidCapabilityVersion`) estão mapeados, mas hoje só são devolvidos como pares `(valor, código)` pelo contexto do plugin; não foram exercitados via facade. Continuam pendentes nesta etapa a tipagem estrita completa da superfície pública e a política pós-1.0.0.
+
+Verificação fora do Studio (harness Luau com stubs de `Vector3`/`CFrame`): 59 dos 62 módulos `*Test.lua` passaram, com o mesmo resultado de antes para os demais; os mesmos três módulos que o harness não executa (`CombatAuthorityTest`, `CombatDocumentationTest`, `CombatTest`) continuam fora da verificação. `CombatPluginErrorMappingTest` falha com o comportamento antigo (`got InvalidOperation`) e passa com o mapeamento. `scripts/validate_test_inventory.py` aceita o inventário de 62 módulos. **A suíte completa precisa ser executada novamente no Roblox Studio.** `CombatAPI.SemVer` não foi alterado.
+
+
+## Continuação — consumidor de referência (12 nov 2026)
+
+- Revisão estática de `docs/examples/CustomDataConsumer.server.lua` encontrou que anexar `Hitbox` com `owner:AddComponent(hitbox)` faz o `CombatStateSchema` tratá-la como componente de entidade, embora `Hitbox` não implemente `CaptureRollbackState`/`RestoreRollbackState`. Isso impediria a captura de snapshot do exemplo.
+- O exemplo agora define `Owner`, associa a hitbox à `AttackInstance` e registra a região diretamente em `CollisionWorld`; também ativa a instância antes da captura.
+- `CombatPublicSurfaceTest` ganhou uma regressão de integração pela superfície pública: registra ataque no catálogo, cria override, captura snapshot, altera a geometria, restaura e verifica o `CustomData` efetivo e a geometria recuperada.
+- Validações executadas neste ambiente: inventário (62 módulos) válido, manifesto Wally válido e `git diff --check` sem problemas. Não há Rojo, Wally ou `luau-lsp` instalados neste ambiente; a regressão e o exemplo ainda precisam de execução no Roblox Studio.
+
+
+## Continuação — tipagem da superfície pública (12 nov 2026)
+
+- `CombatAPITypes.lua` agora declara contratos para `CombatAPI`, `APIContext`,
+  eventos, inscrições, opções de eventos e assinaturas dos construtores de
+  `Attack` e `AttackInstance`, incluindo a compatibilidade do quarto argumento
+  escalar legado com o novo registro de opções.
+- `CombatAPI.lua` e `Events/APIContext.lua` receberam assinaturas explícitas e
+  `--!strict`; o facade é associado ao contrato `CombatTypes.CombatAPI`.
+- `CombatAPITypesTest.lua` foi adicionado como teste compile-time/runtime para
+  verificar o contrato do facade e o uso tipado de ataques e overrides.
+- A CI foi ampliada para analisar esses dois módulos além dos contratos
+  `CombatAPITypes`, `APIError` e `APIResult`. A análise continua consultiva.
+- Os getters crus de resolvers permanecem `any` por decisão explícita de
+  fronteira: ainda não há contratos concretos e estáveis para todos eles.
+- Inventário atualizado e validado: 63 módulos automatizados e um smoke test
+  multiplayer separado. `scripts/validate_wally_package.py`, validação do JSON
+  e `git diff --check` passaram.
+- `luau-lsp`, Rojo e Aftman não estão instalados neste ambiente, então não foi
+  possível executar a análise, o build Rojo ou os testes de runtime nesta rodada.
+  O relatório `combatapi-studio-test-report.md` mantém os 63 resultados como
+  pendentes. A Etapa B permanece parcial.
+
+
+## Continuação — contratos tipados de plugins (12 nov 2026)
+
+- Os tipos públicos agora descrevem perfis, dependências, implementações, estados
+  e resultados de plugin. `CombatAPI` e `APIContext` tipam registro e ciclo de
+  vida com `APIResult<PluginResolverResult>`, e a consulta de plugin retorna
+  `APIResult<Plugin>`.
+- `CombatAPITypesTest` cobre construção, registro, consulta e início de plugin
+  pela superfície pública.
+- A fronteira de acesso a resolvers continua intencionalmente dinâmica; os
+  tipos de contexto de callback ainda deixam `any` para a API extensível do
+  contexto de plugin. A tipagem estrita completa da implementação permanece
+  pendente.
+- Validação Luau e execução no Roblox Studio ainda precisam ser feitas; esta
+  alteração não declara aprovação de runtime.
+
+
+## Continuação — contratos e ciclo de vida de capabilities (12 nov 2026)
+
+- `PluginContext:GetRegistry()` agora tem contrato tipado de consulta para
+  plugins e capabilities; as assinaturas de `Initialize`, `Start`, `Stop` e
+  `Subscribe` descrevem os contextos, eventos, inscrições e erros retornados.
+- Os códigos de erro de `RegisterCapability` e `Register` estão enumerados nos
+  tipos públicos, sem mudar o formato de retorno em dois valores.
+- Corrigido `CombatAPITypesTest`: a chamada multi-retorno de
+  `RegisterCapability` agora captura capability e erro em variáveis separadas,
+  em vez de indexar incorretamente o registro retornado como tupla.
+- O teste cobre conflitos, capabilities não declaradas, invalidação do contexto
+  ao parar o plugin e segurança de uma vista de registry retida.
+- Build Rojo e `git diff --check` passaram nesta revisão; a análise Luau e o
+  runtime de Studio continuam pendentes.
+
+
+## Continuação — erros consistentes na consulta de plugins (12 nov 2026)
+
+- `APIContext:GetPlugin` valida o ID antes da consulta e distingue entrada
+  inválida, plugin inexistente e contexto destruído com `InvalidArgument`,
+  `NotFound` e `Destroyed`, respectivamente; a ausência inesperada do resolver
+  é reportada como `NotInitialized`.
+- `PluginContext:Subscribe` tipa tanto erros estruturados do EventBus quanto os
+  códigos locais retornados para argumentos inválidos e contexto invalidado.
+- Regressões adicionadas ao `CombatAPITypesTest` e ao `CombatPluginTest` para
+  validar IDs vazios e consulta após destruição; os casos de Subscribe inválido
+  também são exercitados no teste tipado.
+- Build Rojo e `git diff --check` passaram; testes Roblox Studio e análise Luau
+  continuam pendentes.
+
+
+## Continuação — contrato do EventBus e validação de extensões (12 nov 2026)
+
+- Adicionado o tipo público `EventBus` e aplicado a `APIContext.Events`,
+  `APIContext:GetEvents()` e `PluginContext:GetEventBus()`.
+- A assinatura de callback de `PluginContext:Subscribe` agora reflete o
+  `APIContext` não nulo passado pelo EventBus do World.
+- O teste tipado também verifica acesso ao EventBus compartilhado e a resposta
+  `UnsupportedExtensionKind` da API genérica `PluginContext:Register`.
+- Build Rojo e `git diff --check` passaram; a suíte Roblox Studio/análise Luau
+  permanecem pendentes.
+
+
+## Continuação — consistência de versões de plugins (12 nov 2026)
+
+- `Plugins/PluginVersion` centraliza validação e comparação do formato
+  numérico `major.minor.patch`, reutilizado por perfis, dependências e
+  capabilities.
+- A comparação decimal por componentes preserva exatidão para versões com
+  componentes maiores que a precisão inteira dos números Luau.
+- `PluginCapability.new` valida versão e proprietário; `RegisterCapability`
+  converte versões malformadas em `InvalidCapabilityVersion` em vez de deixar
+  uma asserção escapar durante o ciclo de vida do plugin.
+- `CombatPluginTest` cobre versões inválidas, comparação de componentes muito
+  grandes e dependências sem versão mínima; `CombatDocumentationTest` confirma
+  que o novo módulo está empacotado e carregável.
+- Build Rojo, validação do JSON e `git diff --check` passaram nesta rodada; os
+  testes Roblox Studio e a análise Luau seguem pendentes.
+
+
+## Debug do snapshot público — 12 nov 2026
+
+- O log do Roblox Studio reportou 62 testes aprovados e uma falha em
+  `CombatPublicSurfaceTest`: `World has no Simulation` durante
+  `CaptureCombatState()`. A causa era o teste e o consumidor de referência
+  capturarem/restaurarem snapshots sem inicializar o relógio de simulação
+  exigido pelo schema.
+- `CombatAPI.Simulation` agora é exportado e tipado; o teste de superfície e
+  `CustomDataConsumer.server.lua` inicializam `Simulation.new(world)` antes
+  de usar snapshots. `CombatAPITypesTest` e `CombatDocumentationTest` cobrem o
+  novo contrato.
+- O build Rojo e `git diff --check` passaram após a correção. A suíte precisa
+  ser executada novamente no Roblox Studio; não há ainda evidência de que os
+  63 testes passem juntos.
+- Na execução seguinte do Studio, `CombatPublicSurfaceTest` avançou além da
+  inicialização da Simulation, mas a restauração falhou porque o snapshot tinha
+  geometria não vazia sem um `CollisionTopologyCatalog`. O facade agora expõe
+  o catálogo; o teste e o exemplo configuram uma fábrica versionada. Build e
+  execução da suíte ainda precisam ser repetidos para confirmar o resultado.
+
+
+## Continuação — execução completa no Studio (12 nov 2026)
+
+- O usuário confirmou `CombatTestRunner: PASS (63 tests)`, com todos os 63
+  testes executados e nenhuma falha após a inclusão da `Simulation` e do
+  `CollisionTopologyCatalog` na configuração do teste de superfície pública.
+- O benchmark no mesmo Output reportou `restored=true`; para a configuração
+  `entities=32`, `volumes=64`, `attackInstances=32`, `frames=30` e
+  `repetitions=3`, mediu captura média de 0,007295 s, serialização de
+  0,002893 s, validação de colisão de 0,001312 s, preparação de restore de
+  0,001691 s, step de 0,184594 s e restore/replay de 0,176639 s. Continua sem
+  baseline pré-CustomData comparável.
+- O Output ainda contém avisos de incompatibilidade de tipo do asset
+  `rbxassetid://203785492`; não foram falhas de teste. O smoke multiplayer
+  com dois clientes estava pendente naquela execução.
+- A cobertura tipada da `Simulation` foi ampliada para validar opções de
+  configuração, captura/restauração do estado e hash. Build Rojo e análise
+  Luau precisam ser repetidos após essas alterações.
+
+
+## Etapa D — diagnóstico de determinismo e inspeção de replay (12 nov 2026)
+
+- `DeterminismGuard` agora registra sequência monotônica e frame da simulação
+  em cada violação explícita; limpar a lista não reinicia a sequência.
+- `ReplayRecording:GetFrame` e `GetFrameRange` devolvem cópias defensivas, e
+  divergências de estado inicial, inputs, fatos por frame e frames ausentes
+  incluem dados esperado/observado quando disponíveis.
+- O formato de replay continua na versão 1. Os testes de determinismo, replay
+  e contratos tipados cobrem os novos resultados; a validação Rojo, análise
+  do build Rojo e `git diff --check` passaram. O `luau-lsp` não pôde ser
+  disponibilizado porque `aftman install` falhou ao atualizar o alias do Rojo,
+  que está bloqueado por outro processo; a execução Studio deste incremento
+  ainda está pendente.
+- Atualização posterior: o usuário confirmou que o smoke test terminou sem
+  erros. A pendência de execução do smoke está encerrada; não foram fornecidos
+  detalhes adicionais sobre número de clientes ou métricas.
+
+
+## Atualização — execução recente no Studio (12 nov 2026)
+
+- O usuário confirmou que a suíte executada após a correção do mapa de erros
+  passou. Não foram informados contagem nem logs detalhados.
+- O contrato de mapeamento foi delimitado aos resultados do `PluginResolver`
+  convertidos em `APIResult`. Os códigos retornados em pares por
+  `PluginContext:RegisterCapability` permanecem parte de um contrato separado;
+  testes e documentação agora verificam essa distinção.
+- A atualização seguinte removeu `CapabilityNotFound` e `PermissionDenied` do
+  tipo `PluginContextErrorCode`, pois não são retornados pelos métodos públicos
+  de `PluginContext`. O build Rojo passou após essa alteração; análise Luau e
+  execução da suíte no Studio ainda são necessárias para validar o novo tipo.
+
+## Continuação — tipagem estrita do PluginContext (12 nov 2026)
+
+- `PluginContext.lua` agora usa `--!strict`, com tipos explícitos para o estado
+  do contexto, recursos de teardown, vista do registry, callbacks e fronteira
+  com o resolver.
+- A implementação mantém a invalidação e a liberação de inscrições/capabilities;
+  um contexto válido sem resolver ou plugin agora falha explicitamente como
+  violação de invariante.
+- O build Rojo e `git diff --check` passaram. O teste de Studio informado pelo
+  usuário antecede esta migração, e o analisador `luau-lsp` não pôde ser
+  instalado nesta máquina devido a um bloqueio ao atualizar o alias do Rojo.
+  Análise Luau e suíte Studio continuam pendentes para este lote.
+
+## Fase B — contrato público ampliado (12 nov 2026)
+
+- A política SemVer/depreciação e a distinção entre superfície pública,
+  resolvers avançados e módulos internos estão documentadas em `PUBLIC_API.md`;
+  o `CHANGELOG.md` mantém as mudanças do contrato.
+- O mapeamento de falhas de lifecycle/registro do `PluginResolver` é centralizado
+  em `ResolverErrorMap`; códigos em pares do `PluginContext` ficam fora do
+  contrato de `APIError`.
+- `--!strict` e assinaturas tipadas cobrem agora a fachada, APIContext,
+  APIError/APIResult, PluginContext, Event/EventBus/EventFilter/Subscription/
+  EventTypes e OffensiveProperties. `CombatAPITypesTest` também verifica os
+  contratos de filtros de eventos e propriedades ofensivas.
+- A CI consultiva foi ampliada para analisar esses módulos. Build Rojo e
+  `git diff --check` passaram; depois desta nota o usuário informou que a
+  execução no Studio terminou com zero erros, sem fornecer log ou contagem.
+  `luau-lsp` ainda não foi executado localmente.
+
+## Etapa D — eventos declarativos de ações (12 nov 2026)
+
+- A primeira capacidade recebeu especificação e pseudocódigo em
+  `API_MELHORIAS.md` antes da implementação: eventos serializáveis associados
+  a offsets da timeline, sem executor embutido de projéteis ou hitboxes.
+- `CombatAPI.CombatActionDefinition` agora é export público tipado. Definições
+  validam offsets, referências de handler na inscrição do pipeline e payloads
+  serializáveis copiados/congelados; handlers recebem eventos imutáveis no
+  frame declarado, inclusive durante replay.
+- `CombatActionCatalog` manifest v2 fixa eventos declarados; manifest v1 é
+  aceito apenas quando as definições atuais não têm eventos.
+- `CombatPipelineTest` cobre limites/serialização, handler ausente, ordem de
+  despacho, fingerprint do catálogo e reprodução após restore.
+- Build Rojo e verificação de whitespace CRLF-aware passaram. A análise Luau
+  local e a execução Studio deste novo incremento ainda não foram feitas:
+  `aftman install` falhou ao criar o alias do Rojo porque o executável está
+  bloqueado por outro processo. A execução independente de
+  `CustomDataConsumer.server.lua` (Etapa A) continua pendente.

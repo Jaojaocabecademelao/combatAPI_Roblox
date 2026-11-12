@@ -11,12 +11,21 @@ local FORBIDDEN_DURING_REPLAY = table.freeze({
 	IrreversibleSideEffect = true,
 })
 
-function DeterminismGuard.new(contextProvider)
+local function isValidFrame(frame)
+	return type(frame) == "number" and frame == frame and frame >= 0
+		and frame < math.huge and frame % 1 == 0
+end
+
+function DeterminismGuard.new(contextProvider, frameProvider)
 	assert(contextProvider == nil or type(contextProvider) == "function",
 		"DeterminismGuard context provider must be a function or nil")
+	assert(frameProvider == nil or type(frameProvider) == "function",
+		"DeterminismGuard frame provider must be a function or nil")
 	return setmetatable({
 		ContextProvider = contextProvider,
+		FrameProvider = frameProvider,
 		Violations = {},
+		Sequence = 0,
 	}, DeterminismGuard)
 end
 
@@ -34,8 +43,21 @@ function DeterminismGuard:Check(operation, details)
 		"DeterminismGuard:Check() requires an operation name")
 	local context = self:GetContext()
 	if context == "Normal" or not self:IsForbidden(operation) then return true end
-	local violationData = { Operation = operation, Context = context }
-	if details ~= nil then violationData.Details = tostring(details) end
+	local frame
+	if self.FrameProvider then
+		frame = self.FrameProvider()
+		assert(isValidFrame(frame), "DeterminismGuard frame provider must return a non-negative integer")
+	end
+	local detailText
+	if details ~= nil then detailText = tostring(details) end
+	self.Sequence += 1
+	local violationData = {
+		Sequence = self.Sequence,
+		Operation = operation,
+		Context = context,
+	}
+	if frame ~= nil then violationData.Frame = frame end
+	if detailText ~= nil then violationData.Details = detailText end
 	local violation = table.freeze(violationData)
 	table.insert(self.Violations, violation)
 	return false, violation

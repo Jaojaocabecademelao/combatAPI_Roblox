@@ -10,7 +10,7 @@ O valor efetivo da instância é um **merge raso**: as chaves do override substi
 
 ## Validação e imutabilidade
 
-`CustomData` e `CustomDataOverrides` aceitam `nil` ou uma tabela simples serializável pelo `StateSerializer`: sem metatable, ciclos, funções, `Instance`/userdata, NaN/infinito ou chaves incompatíveis com o serializador. O limite é **256 entradas e profundidade 8 por campo**. Tabela vazia é normalizada para `nil`. A API copia e congela recursivamente os dados, incluindo os valores aninhados; alterações posteriores na tabela de entrada não afetam a definição nem a instância.
+`CustomData` e `CustomDataOverrides` aceitam `nil` ou uma tabela simples serializável pelo `StateSerializer`: sem metatable, ciclos, funções, `Instance`/userdata, NaN/infinito ou chaves incompatíveis com o serializador. O limite é **256 valores e profundidade 8 por campo**; a tabela raiz também conta como valor, então uma tabela plana comporta até 255 chaves (limites expostos em `OffensiveProperties.CustomDataLimits`). Tabela vazia é normalizada para `nil`. A API copia e congela recursivamente os dados, incluindo os valores aninhados; alterações posteriores na tabela de entrada não afetam a definição nem a instância.
 
 O dado é opaco: a API não interpreta seus campos. Código de gameplay deve acessar chaves conhecidas e não depender da ordem de `pairs`; se a iteração for necessária para lógica determinística, ordene as chaves. Valores usados para calcular overrides devem vir de inputs/contadores determinísticos (por exemplo, frames de carga), nunca do relógio real ou de aleatoriedade não determinística.
 

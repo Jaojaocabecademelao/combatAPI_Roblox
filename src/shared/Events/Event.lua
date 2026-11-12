@@ -1,11 +1,15 @@
-type CombatTypes = require(script.Parent.Parent.CombatAPITypes)
+--!strict
 
-export type Value = CombatTypes.Event
+local Types = require(script.Parent.Parent.CombatAPITypes)
+
+export type Value = Types.Event
 
 local Event = {}
 Event.__index = Event
 
-local function isRecursivelyFrozen(value, seen)
+export type Envelope = Types.Event
+
+local function isRecursivelyFrozen(value: any, seen: { [any]: boolean }?): boolean
 	if type(value) ~= "table" then return true end
 	if not table.isfrozen(value) then return false end
 	seen = seen or {}
@@ -19,7 +23,7 @@ local function isRecursivelyFrozen(value, seen)
 	return true
 end
 
-local function project(value, seen)
+local function project(value: any, seen: { [any]: boolean }?): any
 	local valueType = type(value)
 	if valueType ~= "table" then return value end
 	if value.Id ~= nil then return value.Id end
@@ -38,11 +42,16 @@ local function project(value, seen)
 	seen[value] = nil
 	return table.freeze(result)
 end
-function Event.new(eventType, payload, context)
+
+function Event.new(
+	eventType: string,
+	payload: { [string]: any }?,
+	context: { [string]: any }?
+): Envelope
 	assert(type(eventType) == "string" and eventType ~= "", "Event Type is required")
 	payload = payload or {}
 	assert(type(payload) == "table", "Event Payload must be a table")
-	local safePayload = {}
+	local safePayload: { [string]: any } = {}
 	for key, value in pairs(payload) do
 		if type(value) ~= "function" and key ~= "Callback" then
 			-- CustomData is an opaque API-owned value. Preserve its frozen reference
@@ -55,7 +64,7 @@ function Event.new(eventType, payload, context)
 		end
 	end
 	local frame = context and (context.SimulationFrame or context.Frame) or safePayload.Frame
-	local event = {
+	local event: { [string]: any } = {
 		Type = eventType, SimulationFrame = frame, Frame = frame,
 		SourceSystem = context and context.SourceSystem or "Unknown",
 		EntityId = context and context.EntityId or safePayload.EntityId,
@@ -68,6 +77,6 @@ function Event.new(eventType, payload, context)
 	for key, value in pairs(safePayload) do
 		if event[key] == nil then event[key] = value end
 	end
-	return table.freeze(setmetatable(event, Event))
+	return table.freeze(setmetatable(event, Event)) :: Envelope
 end
 return Event

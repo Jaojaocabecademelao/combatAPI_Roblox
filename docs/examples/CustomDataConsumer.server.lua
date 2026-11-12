@@ -4,13 +4,16 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CombatAPI = require(ReplicatedStorage.Shared.CombatAPI)
+local CombatAPITypes = require(ReplicatedStorage.Shared.CombatAPITypes)
+type AttackOptions = CombatAPITypes.AttackOptions
+type AttackInstanceOptions = CombatAPITypes.AttackInstanceOptions
 
-local world = CombatAPI.CreateWorld()
-CombatAPI.Simulation.new(world, { Seed = 17 })
+local world: CombatAPITypes.World = CombatAPI.CreateWorld()
+local simulation: CombatAPITypes.Simulation = CombatAPI.Simulation.new(world, { Seed = 17 })
 local collisionWorld = CombatAPI.CollisionWorld.new(world)
 local attackCatalog = CombatAPI.AttackCatalog.new()
 
-local chargedAttack = CombatAPI.Attack.new({
+local chargedAttackOptions: AttackOptions = {
     Id = "example.charged-strike",
     Damage = 12,
     Hitstun = 18,
@@ -19,7 +22,8 @@ local chargedAttack = CombatAPI.Attack.new({
         Element = "Arcane",
         Visual = { Trail = "Blue" },
     },
-})
+}
+local chargedAttack: CombatAPITypes.Attack = CombatAPI.Attack.new(chargedAttackOptions)
 
 attackCatalog:Register(chargedAttack, 1)
 attackCatalog:Seal()
@@ -81,15 +85,17 @@ local function applyCharge(chargeFrames: number)
     assert(currentHitbox ~= nil, "Hitbox is unavailable after collision topology restore")
 
     local radius = 3 + math.floor(chargeFrames / 12)
-    local attackInstance = CombatAPI.AttackInstance.new(chargedAttack, owner, nil, {
+    local instanceOptions: AttackInstanceOptions = {
         Id = "example.charged-strike.instance",
         CustomDataOverrides = {
             Radius = radius,
             ChargeFrames = chargeFrames,
             Visual = { Trail = "ChargedBlue" },
         },
-    })
+    }
+    local attackInstance = CombatAPI.AttackInstance.new(chargedAttack, owner, nil, instanceOptions)
 
+    attackInstance:Activate()
     currentHitbox.Size = Vector3.new(radius * 2, 4, radius * 2)
     attackInstance:AddHitbox(currentHitbox)
 end

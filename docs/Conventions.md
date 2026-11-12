@@ -33,8 +33,13 @@ Use documented constructors, methods, Results, Events, and World getters. Do not
 
 ## Dados opacos de ataques (`CustomData`)
 
-`CustomData` é um campo de extensão opaco nas propriedades de ataque, não um espaço para callbacks ou objetos Roblox. Aceite somente tabelas simples serializáveis: sem metatables, ciclos, funções, Instances/userdata ou números não finitos; limite de 256 entradas e profundidade 8. A API copia e congela recursivamente o valor; tabelas vazias equivalem a `nil`. A ordem de `pairs` não é um contrato: gameplay deve ler chaves conhecidas ou ordenar chaves antes de uma iteração que afete resultados.
+`CustomData` é um campo de extensão opaco nas propriedades de ataque, não um espaço para callbacks ou objetos Roblox. Aceite somente tabelas simples serializáveis: sem metatables, ciclos, funções, Instances/userdata ou números não finitos; limite de 256 valores (a tabela raiz conta) e profundidade 8. A API copia e congela recursivamente o valor; tabelas vazias equivalem a `nil`. A ordem de `pairs` não é um contrato: gameplay deve ler chaves conhecidas ou ordenar chaves antes de uma iteração que afete resultados.
 
 `CustomDataOverrides` é específico de uma `AttackInstance` e faz merge raso sobre o dado da definição. Uma tabela aninhada no override substitui por completo a tabela aninhada base. Não mutar a definição para representar estado de carga/execução; passe os dados específicos na criação da instância. Dados usados no combate, rollback ou replay devem derivar de inputs e contadores determinísticos, nunca de relógio real, callbacks de renderização ou aleatoriedade não semeada/determinística.
 
-O contrato de snapshot está na versão **CombatStateSchema 3** e o manifest de ataque na versão **2**; estas versões internas não alteram `CombatAPI.Version`, atualmente **1**. A política de SemVer e depreciação da superfície pública está em [PUBLIC_API](PUBLIC_API.md); mudanças e versões de release devem ser registradas no changelog sem confundir a versão do pacote com as versões dos contratos serializados. Veja [CUSTOMDATA](CUSTOMDATA.md).
+O contrato de snapshot está na versão **CombatStateSchema 3**, o manifest de
+ataque na versão **2** e o manifest de ações na versão **2**; estas versões
+internas não alteram `CombatAPI.Version`, atualmente **1**. A política SemVer e
+depreciação da superfície pública está em [PUBLIC_API](PUBLIC_API.md); mudanças
+e versões de release devem ser registradas no changelog sem confundir a versão
+do pacote com as versões dos contratos serializados. Veja [CUSTOMDATA](CUSTOMDATA.md).

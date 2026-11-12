@@ -118,7 +118,7 @@ local function isDenseArray(value)
 	return count == maxIndex
 end
 
-local CUSTOM_DATA_LIMITS = { MaxEntries = 256, MaxDepth = 8 }
+local CUSTOM_DATA_LIMITS = require(script.Parent.OffensiveProperties).CustomDataLimits
 
 local function validateCustomDataOverrides(value)
 	if value == nil then return true end
@@ -404,7 +404,7 @@ function CollisionWorld:CaptureRollbackState()
 					DefinitionVersion = self.AttackCatalog and self.AttackCatalog:GetVersion(instance.Attack.Id) or nil,
 					OwnerEntityId = instance.OwnerEntity and stableId(instance.OwnerEntity, "Attack owner") or nil,
 					State = instance.State, HitboxIds = {},
-						CustomDataOverrides = instance.CustomDataOverrides and Serializer.CloneSerializable(instance.CustomDataOverrides, { MaxEntries = 256, MaxDepth = 8 }) or nil,
+						CustomDataOverrides = instance.CustomDataOverrides and Serializer.CloneSerializable(instance.CustomDataOverrides, CUSTOM_DATA_LIMITS) or nil,
 				}
 				attacks[id] = saved
 			end

@@ -6,22 +6,11 @@ local Component = require(script.Parent.PluginComponent)
 local Event = require(script.Parent.PluginEvent)
 local Result = require(script.Parent.PluginResult)
 local State = require(script.Parent.PluginState)
+local PluginVersion = require(script.Parent.PluginVersion)
 
 local Resolver = {}
 Resolver.__index = Resolver
 local function result(ok, code, plugin, value, details) return Result.new(ok, code, plugin and plugin.Id, value, details) end
-local function versionParts(value)
-	if type(value) ~= "string" then return nil end
-	local a,b,c = value:match("^(%d+)%.(%d+)%.(%d+)$")
-	if not a then return nil end
-	return { tonumber(a), tonumber(b), tonumber(c) }
-end
-local function versionAtLeast(actual, minimum)
-	if not minimum then return true end
-	local a,b=versionParts(actual),versionParts(minimum); if not a or not b then return false end
-	for i=1,3 do if a[i] ~= b[i] then return a[i] > b[i] end end
-	return true
-end
 local function pluginOrder(a,b)
 	if a.Profile.Priority ~= b.Profile.Priority then return a.Profile.Priority > b.Profile.Priority end
 	return a.Id < b.Id
@@ -102,7 +91,7 @@ function Resolver:UnregisterPlugin(id)
 end
 function Resolver:_registerCapability(plugin,id,implementation,version)
 	if type(id)~="string" or id=="" then return nil,"InvalidCapabilityId" end
-	if version~=nil and type(version)~="string" then return nil,"InvalidCapabilityVersion" end
+	if version~=nil and not PluginVersion.isValid(version) then return nil,"InvalidCapabilityVersion" end
 	local declared=false
 	for _,capabilityId in ipairs(plugin.Profile.Capabilities) do if capabilityId==id then declared=true; break end end
 	if not declared then return nil,"CapabilityNotDeclared" end
@@ -144,7 +133,7 @@ function Resolver:_dependencyOrder(plugin)
 			local target=self.Registry:Get(dependency.PluginId)
 			if not target then
 				if not dependency.Optional then return false,"DependencyMissing",dependency.PluginId end
-			elseif not versionAtLeast(target.Version,dependency.MinVersion) then
+			elseif not PluginVersion.isAtLeast(target.Version, dependency.MinVersion) then
 				return false,"DependencyVersionMismatch",dependency.PluginId
 			else
 				local ok,code,id=visit(target); if not ok then return false,code,id end

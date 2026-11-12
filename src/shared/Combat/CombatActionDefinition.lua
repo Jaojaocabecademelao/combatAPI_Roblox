@@ -2,6 +2,7 @@ local Definition = {}
 Definition.__index = Definition
 Definition.Version = 2
 local MovementState = require(script.Parent.MovementState)
+local Serializer = require(script.Parent.Parent.Simulation.StateSerializer)
 
 Definition.DurationModel = table.freeze({
 	Phased = "Phased",
@@ -51,6 +52,54 @@ local function normalizeStringList(values, label, allowedValues)
 	return table.freeze(result), seen
 end
 
+local function normalizeGameplayEvents(values, durationModel, totalFrames)
+	assert(values == nil or type(values) == "table", "GameplayEvents must be a table or nil")
+	assert(values == nil or getmetatable(values) == nil,
+		"GameplayEvents must be a plain array")
+	local events, count, maxIndex = {}, 0, 0
+	for key in pairs(values or {}) do
+		if type(key) ~= "number" or key < 1 or key % 1 ~= 0 then
+			error("GameplayEvents must be a dense array")
+		end
+		count += 1
+		if key > maxIndex then maxIndex = key end
+	end
+	assert(count == maxIndex, "GameplayEvents must be a dense array")
+	assert(count <= 64, "GameplayEvents cannot contain more than 64 entries")
+
+	for index, event in ipairs(values or {}) do
+		local label = "GameplayEvents[" .. tostring(index) .. "]"
+		assert(type(event) == "table" and getmetatable(event) == nil,
+			label .. " must be a plain table")
+		for key in pairs(event) do
+			assert(key == "FrameOffset" or key == "Type" or key == "Parameters",
+				label .. " has an unknown field: " .. tostring(key))
+		end
+		local frameOffset = event.FrameOffset
+		assert(type(frameOffset) == "number" and frameOffset == frameOffset
+			and frameOffset >= 1 and frameOffset < math.huge and frameOffset % 1 == 0,
+			label .. ".FrameOffset must be a positive integer")
+		assert(durationModel == Definition.DurationModel.Persistent or frameOffset <= totalFrames,
+			label .. ".FrameOffset exceeds the action duration")
+		assert(type(event.Type) == "string" and #event.Type > 0 and #event.Type <= 96,
+			label .. ".Type must be a non-empty string of at most 96 characters")
+		assert(event.Parameters == nil or
+			(type(event.Parameters) == "table" and getmetatable(event.Parameters) == nil),
+			label .. ".Parameters must be a plain table or nil")
+		local ok, parameters = pcall(Serializer.CloneSerializable, event.Parameters or {}, {
+			MaxEntries = 256,
+			MaxDepth = 8,
+		})
+		assert(ok, label .. ".Parameters must contain bounded serializable data: " .. tostring(parameters))
+		events[index] = table.freeze({
+			FrameOffset = frameOffset,
+			Type = event.Type,
+			Parameters = Serializer.Freeze(parameters),
+		})
+	end
+	return table.freeze(events)
+end
+
 function Definition.new(options)
 	options = options or {}
 	assert(type(options) == "table", "CombatActionDefinition.new expects a table")
@@ -91,6 +140,8 @@ function Definition.new(options)
 	end
 	local movementStates = normalizeStringList(requirements.MovementStates,
 		"MovementStates", validMovementStates)
+	local totalFrames = durationModel == Definition.DurationModel.Instant and 1
+		or startup + active + recovery
 	return table.freeze(setmetatable({
 		Version = Definition.Version,
 		Id = options.Id,
@@ -109,6 +160,7 @@ function Definition.new(options)
 		Costs = table.freeze({
 			Resources = normalizeResources(options.Costs and options.Costs.Resources, "Action costs"),
 		}),
+		GameplayEvents = normalizeGameplayEvents(options.GameplayEvents, durationModel, totalFrames),
 	}, Definition))
 end
 
