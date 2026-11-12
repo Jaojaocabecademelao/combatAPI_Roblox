@@ -1,8 +1,35 @@
 # Changelog
 
-Este arquivo registra mudanças do contrato público e de formatos de estado. A versão pública declarada em `src/shared/CombatAPI.lua` permanece **CombatAPI 1**. O projeto ainda não definiu uma política formal de SemVer para releases; as versões de schema/manifest abaixo são versões internas dos respectivos formatos, não números de release.
+Este arquivo registra mudanças do contrato público e de formatos de estado. A versão pública declarada em `src/shared/CombatAPI.lua` permanece **CombatAPI 1**, enquanto `CombatAPI.SemVer` identifica a versão do pacote. A política SemVer e de depreciação está definida em [`PUBLIC_API.md`](PUBLIC_API.md); as versões de schema/manifest abaixo são versões internas dos respectivos formatos, não números de release.
 
 ## Não lançado
+
+### Adicionado
+
+- Contratos Luau públicos ampliados para `CombatAPI`, `APIContext`, eventos,
+  inscrições, opções de eventos e construtores de `Attack`/`AttackInstance`.
+- `CombatAPI` e `APIContext` agora declaram assinaturas tipadas; os métodos de
+  facade e a superfície pública dos construtores têm contratos explícitos.
+- `CombatAPITypesTest` verifica a compatibilidade estrutural do facade com os
+  tipos públicos e exercita os construtores tipados de ataque/instância.
+- A análise Luau consultiva da CI inclui `CombatAPI.lua` e `APIContext.lua`.
+- Documentação de importação dos tipos e exemplo tipado de `AttackOptions` e
+  `AttackInstanceOptions`.
+
+### Limites
+
+- Os getters de resolvers continuam tipados como `any` intencionalmente, pois
+  são pontos avançados de escape e os contratos concretos dos resolvers ainda
+  não foram estabilizados. Isso não representa tipagem estrita completa de
+  toda a implementação.
+- A análise `luau-lsp` desta alteração ainda precisa ser executada na CI e
+  revisada; testes de runtime no Roblox Studio também permanecem pendentes para
+  esta revisão.
+
+
+### Corrigido
+
+- O consumidor de referência de `CustomData` anexava `Hitbox` como componente genérico da entidade, embora o estado rollback da hitbox seja gerenciado por `CollisionWorld`. O exemplo agora registra a região diretamente no `CollisionWorld`; `CombatPublicSurfaceTest` cobre a captura/restauração do override e da geometria pela superfície pública.
 
 ### Alterado
 

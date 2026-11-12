@@ -5,7 +5,7 @@
 `src/shared/CombatAPI.lua` returns a frozen module table. Current methods and exported types:
 
 `CombatAPI.Version` remains the integer API generation (`1`) for existing
-consumers. `CombatAPI.SemVer` reports the package release version (`0.1.0`),
+consumers. `CombatAPI.SemVer` reports the package release version (`0.1.4`),
 while `CombatAPI.Contracts` exposes independently versioned serialized
 contracts, including the attack catalog manifest and combat state schema.
 See [PUBLIC_API.md](PUBLIC_API.md) for the compatibility boundary and
@@ -183,7 +183,33 @@ The module exports `APIContext`, `EventTypes`, `APIResult`, `APIError`, `Plugin`
 `Hitbox`, `Hurtbox`, and `OffensiveProperties`. The profiles expose definition-only
 `Melee()`, `Projectile()`, and `AreaOfEffect()` examples for the shared action
 pipeline. `CombatAPITypes.lua` is a sibling type-only module; import its types
-with `type CombatTypes = require(ReplicatedStorage.Shared.CombatAPITypes)`.
+with `type CombatTypes = require(ReplicatedStorage.Shared.CombatAPITypes)`. The
+module exports the `CombatAPI`, `APIContext`, `World`, `APIResult<T>`,
+`APIError`, `Event`, `Attack`, `AttackOptions`, `AttackInstance`,
+`AttackInstanceOptions`, `OffensiveProperties`, and `CustomData` contracts.
+The public entry module is cast to `CombatTypes.CombatAPI`, so consumers using
+Luau type checking receive signatures for the public constructors and facade.
+
+Example:
+
+```lua
+local CombatAPI = require(ReplicatedStorage.Shared.CombatAPI)
+type CombatTypes = require(ReplicatedStorage.Shared.CombatAPITypes)
+
+local attackOptions: CombatTypes.AttackOptions = {
+    Id = "ChargedStrike",
+    Damage = 12,
+    CustomData = { Radius = 2, Element = "Arcane" },
+}
+local attack: CombatTypes.Attack = CombatAPI.Attack.new(attackOptions)
+local override: CombatTypes.AttackInstanceOptions = {
+    CustomDataOverrides = { Radius = 5 },
+}
+```
+
+Raw resolver getters intentionally return `any` in the public type contract:
+they are advanced escape hatches, not the stable abstraction boundary. Prefer
+`APIContext` methods and documented `World` methods for integrations.
 
 A complete consumer-side example using only exported constructors is available
 at [examples/CustomDataConsumer.server.lua](examples/CustomDataConsumer.server.lua).

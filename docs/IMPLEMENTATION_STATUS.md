@@ -74,7 +74,7 @@ atributos e ambiente.
 
 | Etapa | Estado | Evidência / pendência |
 |---|---|---|
-| A — Consumidor de referência | Parcial, exemplo preparado | `docs/examples/CustomDataConsumer.server.lua` usa exports públicos para definir ataque, override, catálogo, hitbox e snapshot/restore. Precisa ser executado em Studio; lacunas encontradas devem ser registradas antes de declarar aceite. |
+| A — Consumidor de referência | Parcial, exemplo revisado e regressão adicionada | `docs/examples/CustomDataConsumer.server.lua` usa exports públicos para definir ataque, override, catálogo, hitbox e snapshot/restore. A revisão encontrou e corrigiu o uso incorreto de `owner:AddComponent(hitbox)`: `Hitbox` é estado de `CollisionWorld`, não um componente genérico com contrato próprio de snapshot. O exemplo agora usa `CollisionWorld:RegisterHitbox`; `CombatPublicSurfaceTest` cobre captura/restauração pública de override e geometria. Ainda precisa ser executado em Studio como script independente. |
 | B — Contrato estável | Parcial, contrato documentado | `docs/PUBLIC_API.md`, `CombatAPI.SemVer`, `CombatAPITypes`, exports públicos e `CombatPublicSurfaceTest` adicionados. Tipagem estrita completa (`--!strict` em toda a superfície), política pós-1.0.0 validada e mapeamento específico de todos os códigos de erro ainda não estão concluídos. |
 | C — Infraestrutura | Runner executado com sucesso; pendências de ambiente | 61 módulos passaram após correção da colisão e do inventário. O runner deduplica módulos e bloqueia inicialização repetida. O place ainda contém cópias duplicadas; o smoke de dois clientes e a análise da origem dessas duplicatas seguem pendentes. |
 
@@ -140,3 +140,34 @@ Verificação realizada fora do Studio: 58 dos 61 módulos `*Test.lua` passaram 
 Etapa B (mapeamento específico dos códigos de erro): falhas de plugin do facade `CombatAPI` e do `APIContext` deixam de ser sempre `InvalidOperation` e passam por `Events/ResolverErrorMap` (tabela em `docs/PUBLIC_API.md`; código original preservado em `Error.Context.ResolverCode`). Os códigos de capability (`CapabilityConflict`, `CapabilityNotFound`, `CapabilityNotDeclared`, `InvalidCapabilityId`, `InvalidCapabilityVersion`) estão mapeados, mas hoje só são devolvidos como pares `(valor, código)` pelo contexto do plugin; não foram exercitados via facade. Continuam pendentes nesta etapa a tipagem estrita completa da superfície pública e a política pós-1.0.0.
 
 Verificação fora do Studio (harness Luau com stubs de `Vector3`/`CFrame`): 59 dos 62 módulos `*Test.lua` passaram, com o mesmo resultado de antes para os demais; os mesmos três módulos que o harness não executa (`CombatAuthorityTest`, `CombatDocumentationTest`, `CombatTest`) continuam fora da verificação. `CombatPluginErrorMappingTest` falha com o comportamento antigo (`got InvalidOperation`) e passa com o mapeamento. `scripts/validate_test_inventory.py` aceita o inventário de 62 módulos. **A suíte completa precisa ser executada novamente no Roblox Studio.** `CombatAPI.SemVer` não foi alterado.
+
+
+## Continuação — consumidor de referência (12 nov 2026)
+
+- Revisão estática de `docs/examples/CustomDataConsumer.server.lua` encontrou que anexar `Hitbox` com `owner:AddComponent(hitbox)` faz o `CombatStateSchema` tratá-la como componente de entidade, embora `Hitbox` não implemente `CaptureRollbackState`/`RestoreRollbackState`. Isso impediria a captura de snapshot do exemplo.
+- O exemplo agora define `Owner`, associa a hitbox à `AttackInstance` e registra a região diretamente em `CollisionWorld`; também ativa a instância antes da captura.
+- `CombatPublicSurfaceTest` ganhou uma regressão de integração pela superfície pública: registra ataque no catálogo, cria override, captura snapshot, altera a geometria, restaura e verifica o `CustomData` efetivo e a geometria recuperada.
+- Validações executadas neste ambiente: inventário (62 módulos) válido, manifesto Wally válido e `git diff --check` sem problemas. Não há Rojo, Wally ou `luau-lsp` instalados neste ambiente; a regressão e o exemplo ainda precisam de execução no Roblox Studio.
+
+
+## Continuação — tipagem da superfície pública (12 nov 2026)
+
+- `CombatAPITypes.lua` agora declara contratos para `CombatAPI`, `APIContext`,
+  eventos, inscrições, opções de eventos e assinaturas dos construtores de
+  `Attack` e `AttackInstance`, incluindo a compatibilidade do quarto argumento
+  escalar legado com o novo registro de opções.
+- `CombatAPI.lua` e `Events/APIContext.lua` receberam assinaturas explícitas e
+  `--!strict`; o facade é associado ao contrato `CombatTypes.CombatAPI`.
+- `CombatAPITypesTest.lua` foi adicionado como teste compile-time/runtime para
+  verificar o contrato do facade e o uso tipado de ataques e overrides.
+- A CI foi ampliada para analisar esses dois módulos além dos contratos
+  `CombatAPITypes`, `APIError` e `APIResult`. A análise continua consultiva.
+- Os getters crus de resolvers permanecem `any` por decisão explícita de
+  fronteira: ainda não há contratos concretos e estáveis para todos eles.
+- Inventário atualizado e validado: 63 módulos automatizados e um smoke test
+  multiplayer separado. `scripts/validate_wally_package.py`, validação do JSON
+  e `git diff --check` passaram.
+- `luau-lsp`, Rojo e Aftman não estão instalados neste ambiente, então não foi
+  possível executar a análise, o build Rojo ou os testes de runtime nesta rodada.
+  O relatório `combatapi-studio-test-report.md` mantém os 63 resultados como
+  pendentes. A Etapa B permanece parcial.

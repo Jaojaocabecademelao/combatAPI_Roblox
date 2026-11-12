@@ -23,8 +23,10 @@ de teste com dois clientes.
 
 ## Superfície pública e consumidor de referência
 
+- `CombatAPITypesTest.lua`: valida por análise Luau e execução os contratos de `CombatAPI`, `APIContext`, `AttackOptions`, `Attack` e `AttackInstanceOptions`.
 - `CombatPublicSurfaceTest.lua`: verifica exports públicos, versão SemVer,
-  versões de manifest/schema e uso público de `AttackCatalog`.
+  versões de manifest/schema, uso público de `AttackCatalog` e uma restauração
+  de snapshot com `CustomDataOverrides`/geometria via `CollisionWorld`.
 - `CombatAPIPublicContractTest.lua`: verifica o registro de códigos estáveis,
   imutabilidade de `APIError`/`APIResult` e invariantes de sucesso/falha.
 - `CombatPluginErrorMappingTest.lua`: provoca falhas reais do `PluginResolver` pelo facade `CombatAPI` e pelo `APIContext` e verifica o `APIError.Code` mapeado, a preservação de `Context.ResolverCode`, `System` e `Frame`, a imutabilidade do erro e o fallback para `InvalidOperation`.
@@ -80,8 +82,8 @@ inventário, build Rojo e publica o `.rbxlx` como artefato por sete dias para
 abrir no Roblox Studio. O artefato é um place de validação, não um resultado de
 testes aprovados.
 
-Há também uma análise Luau inicial dos três módulos de contrato marcados com
-`--!strict`. Ela é temporariamente consultiva (`continue-on-error`) enquanto o
+Há também uma análise Luau consultiva dos módulos de contrato e facade marcados com
+`--!strict` (`CombatAPITypes`, `APIError`, `APIResult`, `APIContext` e `CombatAPI`). Ela é temporariamente consultiva (`continue-on-error`) enquanto o
 projeto estabelece e revisa uma linha de base de diagnósticos. As definições
 globais Roblox são baixadas do repositório `luau-lsp`; portanto, essa etapa não substitui a análise integrada do Roblox Studio nem a execução dos scripts de
 teste.
@@ -127,3 +129,14 @@ e o runner executa uma função por vez com isolamento de falha e timeout. A CI
 valida o inventário e compila o place, mas não executa módulos Roblox; a aprovação
 de runtime continua dependendo da execução no Studio. O smoke multiplayer é um
 teste separado porque depende de dois clientes conectados.
+
+
+## Static type analysis
+
+The public type contracts live in `src/shared/CombatAPITypes.lua`. The public
+entry module is typed against `CombatTypes.CombatAPI`, and `APIContext.lua` is
+annotated with `--!strict`. Run the repository's pinned `luau-lsp` through
+Aftman after generating the Rojo sourcemap for the target place; do not treat a
+Rojo build or runtime test pass as a substitute for type analysis. Record the
+`luau-lsp` version, exact command, diagnostics, and any intentionally dynamic
+resolver boundaries in the test report.

@@ -51,14 +51,17 @@ jobs:
         run: aftman install
       - name: Generate Rojo sourcemap
         run: rojo sourcemap default.project.json --output sourcemap.json
-      - name: Analyze strict public-contract modules
+      - name: Analyze strict public-contract and facade modules
         # Keep this advisory, but preserve the full diagnostics as an artifact.
         run: |
           set +e
           luau-lsp analyze --sourcemap=sourcemap.json \
             src/shared/CombatAPITypes.lua \
             src/shared/Events/APIError.lua \
-            src/shared/Events/APIResult.lua > luau-analysis.log 2>&1
+            src/shared/Events/APIResult.lua \
+            src/shared/Events/APIContext.lua \
+            src/shared/CombatAPI.lua \
+            src/server/CombatAPITypesTest.lua > luau-analysis.log 2>&1
           status=$?
           printf "\nAnalyzer exit code: %s\n" "$status" >> luau-analysis.log
           cat luau-analysis.log

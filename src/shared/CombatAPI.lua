@@ -1,3 +1,5 @@
+--!strict
+
 local World = require(script.Parent.Core.World)
 local APIContext = require(script.Parent.Events.APIContext)
 local EventTypes = require(script.Parent.Events.EventTypes)
@@ -21,16 +23,20 @@ local Hitbox = require(script.Parent.Combat.Hitbox)
 local Hurtbox = require(script.Parent.Combat.Hurtbox)
 local OffensiveProperties = require(script.Parent.Combat.OffensiveProperties)
 local CombatStateSchema = require(script.Parent.Combat.CombatStateSchema)
+local CombatAPITypes = require(script.Parent.CombatAPITypes)
+type PublicCombatAPI = CombatAPITypes.CombatAPI
+type WorldType = CombatAPITypes.World
+type APIResultType<T> = CombatAPITypes.APIResult<T>
 
-local function wrapPluginResult(result, world)
-	local err = nil
+local function wrapPluginResult(result: any, world: WorldType?): APIResultType<any>
+	local err: CombatAPITypes.APIError? = nil
 	if not result.Success then
 		err = ResolverErrorMap.toError(result, "Plugins", world and world.CurrentFrame)
 	end
 	return APIResult.new(result.Success, result, err)
 end
 
-local CombatAPI = {
+local CombatAPI: any = {
 	Name = "CombatAPI",
 	-- Version is retained as the numeric API generation for existing consumers.
 	Version = 1,
@@ -45,51 +51,51 @@ local CombatAPI = {
 		ReplayRecording = ReplayRecording.Version,
 	}),
 }
-function CombatAPI.CreateWorld(options) return World.new(options) end
-function CombatAPI.GetContext(world)
+function CombatAPI.CreateWorld(options: { [string]: any }?): WorldType return World.new(options) end
+function CombatAPI.GetContext(world: any): CombatAPITypes.APIContext?
 	if type(world) ~= "table" or type(world.GetCombatAPI) ~= "function" then return nil end
 	return world:GetCombatAPI()
 end
-function CombatAPI.GetAPIContext(world)
+function CombatAPI.GetAPIContext(world: any): CombatAPITypes.APIContext?
 	if type(world) ~= "table" or type(world.GetCombatAPI) ~= "function" then return nil end
 	return world:GetCombatAPI()
 end
-function CombatAPI.IsWorld(value) return type(value) == "table" and getmetatable(value) == World end
-function CombatAPI.GetPluginResolver(world)
+function CombatAPI.IsWorld(value: any): boolean return type(value) == "table" and getmetatable(value) == World end
+function CombatAPI.GetPluginResolver(world: any): any?
 	if type(world) ~= "table" or type(world.GetPluginResolver) ~= "function" then return nil end
 	return world:GetPluginResolver()
 end
-function CombatAPI.RegisterPlugin(world, plugin, implementation)
+function CombatAPI.RegisterPlugin(world: WorldType, plugin: any, implementation: any): APIResultType<any>
 	local resolver=CombatAPI.GetPluginResolver(world)
 	if not resolver then return APIResult.new(false,nil,APIError.new(APIError.Code.InvalidArgument,"A valid World is required","Plugins")) end
 	local result=resolver:RegisterPlugin(plugin,implementation)
 	return wrapPluginResult(result, world)
 end
-function CombatAPI.StartPlugin(world, id)
+function CombatAPI.StartPlugin(world: WorldType, id: string): APIResultType<any>
 	local resolver=CombatAPI.GetPluginResolver(world)
 	if not resolver then return APIResult.new(false,nil,APIError.new(APIError.Code.InvalidArgument,"A valid World is required","Plugins")) end
 	local result=resolver:StartPlugin(id)
 	return wrapPluginResult(result, world)
 end
-function CombatAPI.StopPlugin(world, id)
+function CombatAPI.StopPlugin(world: WorldType, id: string): APIResultType<any>
 	local resolver=CombatAPI.GetPluginResolver(world)
 	if not resolver then return APIResult.new(false,nil,APIError.new(APIError.Code.InvalidArgument,"A valid World is required","Plugins")) end
 	local result=resolver:StopPlugin(id)
 	return wrapPluginResult(result, world)
 end
-function CombatAPI.UnregisterPlugin(world,id)
+function CombatAPI.UnregisterPlugin(world: WorldType, id: string): APIResultType<any>
 	local resolver=CombatAPI.GetPluginResolver(world)
 	if not resolver then return APIResult.new(false,nil,APIError.new(APIError.Code.InvalidArgument,"A valid World is required","Plugins")) end
 	local result=resolver:UnregisterPlugin(id)
 	return wrapPluginResult(result, world)
 end
-function CombatAPI.EnablePlugin(world,id)
+function CombatAPI.EnablePlugin(world: WorldType, id: string): APIResultType<any>
 	local resolver=CombatAPI.GetPluginResolver(world)
 	if not resolver then return APIResult.new(false,nil,APIError.new(APIError.Code.InvalidArgument,"A valid World is required","Plugins")) end
 	local result=resolver:EnablePlugin(id)
 	return wrapPluginResult(result, world)
 end
-function CombatAPI.DisablePlugin(world,id)
+function CombatAPI.DisablePlugin(world: WorldType, id: string): APIResultType<any>
 	local resolver=CombatAPI.GetPluginResolver(world)
 	if not resolver then return APIResult.new(false,nil,APIError.new(APIError.Code.InvalidArgument,"A valid World is required","Plugins")) end
 	local result=resolver:DisablePlugin(id)
@@ -115,4 +121,4 @@ CombatAPI.CollisionWorld = CollisionWorld
 CombatAPI.Hitbox = Hitbox
 CombatAPI.Hurtbox = Hurtbox
 CombatAPI.OffensiveProperties = OffensiveProperties
-return table.freeze(CombatAPI)
+return table.freeze(CombatAPI) :: PublicCombatAPI

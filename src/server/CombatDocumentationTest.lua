@@ -108,7 +108,7 @@ local documentedTests = {
 	"SimulationTest.lua", "CombatDeterminismTest.lua", "CoreTest.lua",
 	"CombatTest.lua", "CombatActionProfilesTest.lua", "CombatAnimationTest.lua",
 	"CombatArmorTest.lua", "CombatAttackCatalogRollbackTest.lua",
-	"CombatAttackCustomDataTest.lua", "CombatAttackPropertiesTest.lua", "CombatAuthorityTest.lua",
+	"CombatAttackCustomDataTest.lua", "CombatAttackPropertiesTest.lua", "CombatAPITypesTest.lua", "CombatAuthorityTest.lua",
 	"CombatCancelRollbackIntegrationTest.lua", "CombatCancelTest.lua",
 	"CombatCharacterTest.lua", "CombatCollisionRollbackTest.lua",
 	"CombatComboRollbackTest.lua", "CombatComboTest.lua",

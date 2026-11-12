@@ -4,12 +4,15 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CombatAPI = require(ReplicatedStorage.Shared.CombatAPI)
+local CombatAPITypes = require(ReplicatedStorage.Shared.CombatAPITypes)
+type AttackOptions = CombatAPITypes.AttackOptions
+type AttackInstanceOptions = CombatAPITypes.AttackInstanceOptions
 
-local world = CombatAPI.CreateWorld()
+local world: CombatAPITypes.World = CombatAPI.CreateWorld()
 local collisionWorld = CombatAPI.CollisionWorld.new(world)
 local attackCatalog = CombatAPI.AttackCatalog.new()
 
-local chargedAttack = CombatAPI.Attack.new({
+local chargedAttackOptions: AttackOptions = {
     Id = "example.charged-strike",
     Damage = 12,
     Hitstun = 18,
@@ -18,7 +21,8 @@ local chargedAttack = CombatAPI.Attack.new({
         Element = "Arcane",
         Visual = { Trail = "Blue" },
     },
-})
+}
+local chargedAttack: CombatAPITypes.Attack = CombatAPI.Attack.new(chargedAttackOptions)
 
 attackCatalog:Register(chargedAttack, 1)
 attackCatalog:Seal()
@@ -34,17 +38,20 @@ local function applyCharge(chargeFrames: number)
     assert(owner ~= nil, "Attacker entity is unavailable")
 
     local radius = 3 + math.floor(chargeFrames / 12)
-    local attackInstance = CombatAPI.AttackInstance.new(chargedAttack, owner, nil, {
+    local instanceOptions: AttackInstanceOptions = {
         Id = "example.charged-strike.instance",
         CustomDataOverrides = {
             Radius = radius,
             ChargeFrames = chargeFrames,
             Visual = { Trail = "ChargedBlue" },
         },
-    })
+    }
+    local attackInstance = CombatAPI.AttackInstance.new(chargedAttack, owner, nil, instanceOptions)
 
+    attackInstance:Activate()
     local hitbox = CombatAPI.Hitbox.new({
         Id = 7001,
+        Owner = owner,
         AttackId = chargedAttack.Id,
         Position = Vector3.new(0, 3, 0),
         Size = Vector3.new(radius * 2, 4, radius * 2),
@@ -52,7 +59,9 @@ local function applyCharge(chargeFrames: number)
         Hitstun = 18,
     })
     attackInstance:AddHitbox(hitbox)
-    owner:AddComponent(hitbox)
+    -- Register the region directly: Hitbox is rollback-owned by CollisionWorld,
+    -- not a generic Entity component with its own CaptureRollbackState contract.
+    collisionWorld:RegisterHitbox(hitbox)
 end
 
 local chargeFrames = 24
