@@ -178,13 +178,17 @@ CombatAPI.UnregisterPlugin(world, id)
 ```
 
 The module exports `APIContext`, `EventTypes`, `APIResult`, `APIError`, `Plugin`,
-`PluginProfile`, `PluginState`, `CombatActionProfiles`, `CombatActionCatalog`,
-`ReplayRecording`, `Attack`, `AttackInstance`, `AttackCatalog`, `CollisionWorld`,
-`Hitbox`, `Hurtbox`, and `OffensiveProperties`. The profiles expose definition-only
-`Melee()`, `Projectile()`, and `AreaOfEffect()` examples for the shared action
-pipeline. `CombatAPITypes.lua` is a sibling type-only module; import its types
-with `type CombatTypes = require(ReplicatedStorage.Shared.CombatAPITypes)`. The
-module exports the `CombatAPI`, `APIContext`, `World`, `APIResult<T>`,
+`PluginCapability`, `PluginContext`, `PluginProfile`, `PluginState`,
+`CombatActionProfiles`, `CombatActionCatalog`, `ReplayRecording`, `Attack`,
+`AttackInstance`, `AttackCatalog`, `CollisionWorld`, `Hitbox`, `Hurtbox`, and
+`OffensiveProperties`. The profiles expose definition-only `Melee()`,
+`Projectile()`, and `AreaOfEffect()` examples for the shared action pipeline.
+Plugin callbacks receive `PluginContext`, which exposes `GetCapability` and
+`RegisterCapability` for extension-owned capabilities keyed by identifier; the
+capability record includes `Id`, `Version`, `Implementation`, and
+`OwnerPluginId`. `CombatAPITypes.lua` is a sibling type-only module; import its
+types with `type CombatTypes = require(ReplicatedStorage.Shared.CombatAPITypes)`.
+The module exports the `CombatAPI`, `APIContext`, `World`, `APIResult<T>`,
 `APIError`, `Event`, `Attack`, `AttackOptions`, `AttackInstance`,
 `AttackInstanceOptions`, `OffensiveProperties`, and `CustomData` contracts.
 The public entry module is cast to `CombatTypes.CombatAPI`, so consumers using
@@ -195,6 +199,21 @@ Example:
 ```lua
 local CombatAPI = require(ReplicatedStorage.Shared.CombatAPI)
 type CombatTypes = require(ReplicatedStorage.Shared.CombatAPITypes)
+
+local pluginProfile: CombatTypes.PluginProfileOptions = {
+    Id = "gameplay.ai",
+    Name = "Gameplay AI",
+    Version = "1.0.0",
+    Capabilities = { "gameplay.ai.retarget" },
+}
+local plugin: CombatTypes.Plugin = CombatAPI.Plugin.new(pluginProfile, {
+    Initialize = function(context)
+        local capability = context:RegisterCapability("gameplay.ai.retarget", {
+            Retarget = function(target) return target end,
+        }, "1.0.0")
+        return capability ~= nil
+    end,
+})
 
 local attackOptions: CombatTypes.AttackOptions = {
     Id = "ChargedStrike",

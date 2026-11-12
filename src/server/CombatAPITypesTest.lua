@@ -39,6 +39,19 @@ return function()
 		"typed APIContext lookup returns the registered plugin")
 	check(publicAPI.StartPlugin(world, plugin.Id).Success, "typed plugin lifecycle operation succeeds")
 
+	local pluginContext: CombatAPITypes.PluginContext? = plugin.Context
+	assert(pluginContext ~= nil, "typed plugin lifecycle exposes a PluginContext")
+	local capabilityResult = pluginContext:RegisterCapability("types.contract.capability", {
+		Ping = function() return "pong" end,
+	}, "1.0.0")
+	assert(capabilityResult[1] ~= nil, "typed plugin capability registration succeeds")
+	local registeredCapability: CombatAPITypes.PluginCapability? = capabilityResult[1]
+	check(registeredCapability ~= nil and registeredCapability.Id == "types.contract.capability",
+		"typed plugin capability is registered with the declared identifier")
+	local readCapability: CombatAPITypes.PluginCapability? = pluginContext:GetCapability("types.contract.capability")
+	check(readCapability ~= nil and readCapability.Version == "1.0.0",
+		"typed plugin capability lookup returns the registered capability")
+
 	local directPlugin: CombatAPITypes.APIResult<CombatAPITypes.PluginResolverResult> =
 		publicAPI.RegisterPlugin(world, {
 			Id = "types.contract.direct-plugin",

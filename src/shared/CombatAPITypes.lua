@@ -158,12 +158,32 @@ export type Plugin = {
 	State: PluginLifecycleState,
 	Enabled: boolean?,
 	Failure: string?,
+	Context: PluginContext?,
 }
 
 export type PluginImplementation = {
 	Initialize: ((context: any, plugin: Plugin) -> boolean?)?,
 	Start: ((context: any, plugin: Plugin) -> boolean?)?,
 	Stop: ((context: any, plugin: Plugin) -> boolean?)?,
+}
+
+export type PluginCapability = {
+	Id: string,
+	Version: string,
+	Implementation: any?,
+	OwnerPluginId: string,
+}
+
+export type PluginContext = {
+	GetWorld: (self: PluginContext) -> World?,
+	GetAPI: (self: PluginContext) -> any?,
+	GetEventBus: (self: PluginContext) -> any?,
+	GetRegistry: (self: PluginContext) -> any?,
+	GetCapability: (self: PluginContext, id: string) -> PluginCapability?,
+	RegisterCapability: (self: PluginContext, id: string, implementation: any?, version: string?) -> (PluginCapability?, string?),
+	Subscribe: (self: PluginContext, eventType: string, callback: (any, any, any?) -> (), options: { [string]: any }?) -> (any, string?),
+	Register: (self: PluginContext, kind: "Capability", id: string, implementation: any?, version: string?) -> (PluginCapability?, string?),
+	IsValid: (self: PluginContext) -> boolean,
 }
 
 export type PluginResolverResult = {
@@ -256,6 +276,14 @@ export type PluginModule = {
 	new: (profile: PluginProfile | PluginProfileOptions, implementation: PluginImplementation?) -> Plugin,
 }
 
+export type PluginCapabilityModule = {
+	new: (data: { Id: string, Version: string?, Implementation: any?, OwnerPluginId: string }) -> PluginCapability,
+}
+
+export type PluginContextModule = {
+	new: (resolver: any, plugin: Plugin) -> PluginContext,
+}
+
 export type PluginProfileModule = {
 	Scope: { Gameplay: "Gameplay", Presentation: "Presentation" },
 	new: (data: PluginProfileOptions) -> PluginProfile,
@@ -299,6 +327,8 @@ export type CombatAPI = {
 	APIResult: APIResultModule,
 	APIError: APIErrorModule,
 	Plugin: PluginModule,
+	PluginCapability: PluginCapabilityModule,
+	PluginContext: PluginContextModule,
 	PluginProfile: PluginProfileModule,
 	PluginState: PluginStateModule,
 	CombatActionProfiles: any,
