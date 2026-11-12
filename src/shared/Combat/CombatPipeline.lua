@@ -9,6 +9,27 @@ local StatusContainer = require(script.Parent.StatusContainer)
 local Pipeline = {}
 Pipeline.__index = Pipeline
 
+local function validFrame(value)
+	return type(value) == "number" and value == value and value >= 0
+		and value < math.huge and value % 1 == 0
+end
+
+function Pipeline:_validateGameplayEvents(definition)
+	if #definition.GameplayEvents == 0 then return true end
+	local simulation = self.World:GetSimulation()
+	if not simulation then
+		return false, ("Action %s requires a Simulation for GameplayEvents")
+			:format(tostring(definition.Id))
+	end
+	for index, event in ipairs(definition.GameplayEvents) do
+		if not simulation:_HasGameplayActionEventHandler(event.Type) then
+			return false, ("%s.GameplayEvents[%d].Type has no registered handler: %s")
+				:format(tostring(definition.Id), index, event.Type)
+		end
+	end
+	return true
+end
+
 local function idLess(a, b)
 	if type(a) ~= type(b) then return type(a) < type(b) end
 	return a < b
@@ -23,6 +44,8 @@ function Pipeline:RegisterDefinition(definition)
 	assert(type(definition) == "table" and definition.Version == Definition.Version,
 		"CombatPipeline requires a CombatActionDefinition")
 	if self.Definitions[definition.Id] then return false, "ActionAlreadyRegistered" end
+	local valid, detail = self:_validateGameplayEvents(definition)
+	if not valid then return false, detail end
 	self.Definitions[definition.Id] = definition
 	return true
 end
@@ -38,7 +61,12 @@ function Pipeline:RegisterCatalog(catalog)
 	local manifest = catalog:CaptureManifest()
 	local valid, detail = catalog:ValidateManifest(manifest)
 	if not valid then return false, detail end
-	for _, definition in ipairs(catalog:GetDefinitions()) do
+	local definitions = catalog:GetDefinitions()
+	for _, definition in ipairs(definitions) do
+		local definitionValid, definitionError = self:_validateGameplayEvents(definition)
+		if not definitionValid then return false, definitionError end
+	end
+	for _, definition in ipairs(definitions) do
 		self.Definitions[definition.Id] = definition
 	end
 	self.DefinitionCatalog = catalog
@@ -164,6 +192,24 @@ function Pipeline:Step(frame)
 	for _, id in ipairs(ids) do
 		local action = self.Active[id]
 		local previous = action.Phase
+		if not action:IsFinished() then
+			local simulation = self.World:GetSimulation()
+			local previousActionFrame = action.CurrentFrame
+			for index, event in ipairs(action.Definition.GameplayEvents) do
+				local eventFrame = action.StartFrame + event.FrameOffset
+				if eventFrame > previousActionFrame and eventFrame <= frame then
+					simulation:_DispatchGameplayActionEvent(event.Type, {
+						Type = event.Type,
+						Frame = eventFrame,
+						OwnerId = action.Owner.Id,
+						Parameters = event.Parameters,
+						ActionId = action.Id,
+						ActionDefinitionId = action.Definition.Id,
+						EventIndex = index,
+					})
+				end
+			end
+		end
 		action:Advance(frame)
 		if previous ~= action.Phase and not action:IsFinished() then self:_event(Event.Type.PhaseChanged, action, action.Phase) end
 		if action.State == Instance.State.Finished then
@@ -227,10 +273,12 @@ function Pipeline:ValidateRollbackState(state, world)
 			return false, "CombatPipeline action references an invalid entity or definition"
 		end
 		seen[saved.EntityId] = true
-		if type(saved.StartFrame) ~= "number" or type(saved.CurrentFrame) ~= "number"
+		if not validFrame(saved.StartFrame) or not validFrame(saved.CurrentFrame)
 			or saved.CurrentFrame < saved.StartFrame
 			or saved.DurationModel ~= self.Definitions[saved.ActionDefinitionId].DurationModel
-			or saved.State == Instance.State.Finished or saved.State == Instance.State.Cancelled then
+			or saved.Phase ~= saved.State
+			or (saved.State ~= Instance.State.Startup and saved.State ~= Instance.State.Active
+				and saved.State ~= Instance.State.Recovery) then
 			return false, "CombatPipeline action state is invalid"
 		end
 	end

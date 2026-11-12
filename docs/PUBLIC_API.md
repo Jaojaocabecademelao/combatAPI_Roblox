@@ -12,7 +12,9 @@ The following entry points are public and covered by the package's compatibility
 - Plugin registration accepts typed `Plugin`, `PluginProfile`, or `PluginProfileOptions` values. Lifecycle callbacks receive a public `PluginContext` with a typed registry query view; context-owned subscriptions and capabilities are released on stop. Capability registration reports its failure code as the second return value. Lifecycle results preserve the resolver result shape (`Success`, `Code`, optional `PluginId`, `Value`, and `Details`) inside `APIResult.Value`; `Code` there is a resolver code, distinct from the stable `APIError.Code`.
 - `APIContext:GetPlugin` distinguishes malformed IDs (`InvalidArgument`), missing plugins (`NotFound`), and a destroyed context (`Destroyed`).
 - Plugin profile, dependency minimum, and capability versions use numeric `major.minor.patch` strings; malformed capability versions return `InvalidCapabilityVersion`.
-- `CombatAPI.Attack`, `AttackInstance`, `AttackCatalog`, `CollisionWorld`, `Hitbox`, `Hurtbox`, and `OffensiveProperties`.
+- `CombatAPI.CombatActionDefinition`, `CombatActionCatalog`, `Attack`,
+  `AttackInstance`, `AttackCatalog`, `CollisionWorld`, `Hitbox`, `Hurtbox`, and
+  `OffensiveProperties`.
 - World methods explicitly listed in the World accessors section of `API.md`.
 
 The public constructor exports are provided so a consumer can build an attack definition, create per-execution overrides, register collision regions, and capture/restore combat state without requiring modules from `src/shared/Combat` directly.
@@ -37,7 +39,7 @@ Modules under `src/shared/Core`, `src/shared/Combat`, `src/shared/Simulation`, `
 ## Versioning policy
 
 - `CombatAPI.Version` remains the integer API generation for compatibility with existing code.
-- `CombatAPI.SemVer` is the package release version. The current development baseline is `0.1.4`.
+- `CombatAPI.SemVer` is the package release version. The current development baseline is `0.2.0`.
 - **MAJOR**: remove/rename a public member, change its meaning incompatibly, or change a serialized contract without a compatible migration.
 - **MINOR**: add a backward-compatible public member, capability, or optional field.
 - **PATCH**: backward-compatible bug fixes and documentation corrections.

@@ -37,4 +37,7 @@ Use documented constructors, methods, Results, Events, and World getters. Do not
 
 `CustomDataOverrides` é específico de uma `AttackInstance` e faz merge raso sobre o dado da definição. Uma tabela aninhada no override substitui por completo a tabela aninhada base. Não mutar a definição para representar estado de carga/execução; passe os dados específicos na criação da instância. Dados usados no combate, rollback ou replay devem derivar de inputs e contadores determinísticos, nunca de relógio real, callbacks de renderização ou aleatoriedade não semeada/determinística.
 
-O contrato de snapshot está na versão **CombatStateSchema 3** e o manifest de ataque na versão **2**; estas versões internas não alteram `CombatAPI.Version`, atualmente **1**. O projeto ainda não declara política formal de SemVer/depreciação; mudanças devem ser registradas no changelog sem inferir compatibilidade além do que os contratos versionados garantem. Veja [CUSTOMDATA](CUSTOMDATA.md).
+O contrato de snapshot está na versão **CombatStateSchema 3**, o manifest de
+ataque na versão **2** e o manifest de ações na versão **2**; estas versões
+internas não alteram `CombatAPI.Version`, atualmente **1**. A política SemVer e
+depreciação está em [PUBLIC_API](PUBLIC_API.md). Veja [CUSTOMDATA](CUSTOMDATA.md).

@@ -51,7 +51,7 @@ jobs:
         run: aftman install
       - name: Generate Rojo sourcemap
         run: rojo sourcemap default.project.json --output sourcemap.json
-      - name: Analyze strict public-contract and facade modules
+      - name: Analyze public-contract, event, action, and property modules
         # Keep this advisory, but preserve the full diagnostics as an artifact.
         run: |
           set +e
@@ -59,8 +59,20 @@ jobs:
             src/shared/CombatAPITypes.lua \
             src/shared/Events/APIError.lua \
             src/shared/Events/APIResult.lua \
+            src/shared/Events/Event.lua \
+            src/shared/Events/EventBus.lua \
+            src/shared/Events/EventFilter.lua \
+            src/shared/Events/EventSubscription.lua \
+            src/shared/Events/EventTypes.lua \
+            src/shared/Combat/OffensiveProperties.lua \
             src/shared/Events/APIContext.lua \
             src/shared/CombatAPI.lua \
+            src/shared/Combat/CombatActionDefinition.lua \
+            src/shared/Combat/CombatActionCatalog.lua \
+            src/shared/Combat/CombatPipeline.lua \
+            src/shared/Simulation/Simulation.lua \
+            src/shared/Core/World.lua \
+            src/server/CombatPipelineTest.lua \
             src/server/CombatAPITypesTest.lua > luau-analysis.log 2>&1
           status=$?
           printf "\nAnalyzer exit code: %s\n" "$status" >> luau-analysis.log

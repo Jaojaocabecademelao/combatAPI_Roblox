@@ -1,3 +1,5 @@
+--!strict
+
 return table.freeze({
 	EntityCreated = "EntityCreated", EntityDestroyed = "EntityDestroyed", EntityRespawned = "EntityRespawned",
 	HitConfirmed = "HitConfirmed", HitRejected = "HitRejected",

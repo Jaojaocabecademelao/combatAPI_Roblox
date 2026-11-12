@@ -1,6 +1,18 @@
+--!strict
+
+local Types = require(script.Parent.Parent.CombatAPITypes)
+
+type Event = Types.Event
+type EventFilterOptions = Types.EventFilterOptions
+type Filter = Types.EventFilter
+
 local EventFilter = {}
 EventFilter.__index = EventFilter
-function EventFilter.new(options)
+
+export type Options = EventFilterOptions
+export type Instance = Filter
+
+function EventFilter.new(options: EventFilterOptions?): Filter
 	options = options or {}
 	assert(type(options) == "table", "EventFilter.new() expects options")
 	assert(options.EntityId == nil or type(options.EntityId) == "number" or type(options.EntityId) == "string",
@@ -11,10 +23,16 @@ function EventFilter.new(options)
 	assert(options.DefenderId == nil or type(options.DefenderId) == "number" or type(options.DefenderId) == "string",
 		"DefenderId must be a string, number, or nil")
 	assert(options.Predicate == nil or type(options.Predicate) == "function", "Predicate must be a function")
-	return setmetatable({ EntityId = options.EntityId, SourceSystem = options.SourceSystem,
-		AttackerId = options.AttackerId, DefenderId = options.DefenderId, Predicate = options.Predicate }, EventFilter)
+	return setmetatable({
+		EntityId = options.EntityId,
+		SourceSystem = options.SourceSystem,
+		AttackerId = options.AttackerId,
+		DefenderId = options.DefenderId,
+		Predicate = options.Predicate,
+	}, EventFilter) :: Filter
 end
-function EventFilter:Matches(event)
+
+function EventFilter.Matches(self: Filter, event: Event): boolean
 	if self.EntityId ~= nil and event.EntityId ~= self.EntityId then return false end
 	if self.SourceSystem ~= nil and event.SourceSystem ~= self.SourceSystem then return false end
 	local payload = event.Payload

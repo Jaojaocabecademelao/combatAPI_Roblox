@@ -73,7 +73,8 @@ for _, method in ipairs({ "CreateWorld", "GetContext", "GetAPIContext", "IsWorld
 	check(type(CombatAPI[method]) == "function", "Documented CombatAPI method exists: " .. method)
 end
 for _, export in ipairs({ "APIContext", "EventTypes", "APIResult", "APIError", "Plugin", "PluginCapability",
-	"PluginContext", "PluginProfile", "PluginState", "Simulation", "CollisionTopologyCatalog" }) do
+	"PluginContext", "PluginProfile", "PluginState", "Simulation", "CombatActionDefinition",
+	"CollisionTopologyCatalog" }) do
 	check(CombatAPI[export] ~= nil, "Documented CombatAPI export exists: " .. export)
 end
 check(CombatAPI.CombatActionCatalog ~= nil and CombatAPI.ReplayRecording ~= nil,
@@ -86,6 +87,7 @@ local World = require(Shared.Core.World)
 for _, method in ipairs({
 	"CreateEntity", "GetEntity", "HasEntity", "DestroyEntity", "GetEntities", "GetEvents", "GetCombatAPI",
 	"GetAPIContext", "GetPluginResolver", "SetCollisionWorld", "GetCollisionWorld", "GetSimulation", "SetSimulation",
+	"RegisterGameplayEventHandler", "RegisterGameplayActionEventHandler",
 	"GetDamageResolver", "GetReactionResolver", "GetDefenseResolver", "GetCombatResolver", "GetCombatResolutionEvents",
 	"GetCounterResults", "GetMotionResolver", "GetMotionResults", "GetDamageRequests", "GetDamageEvents",
 	"GetHealthChangedEvents", "GetDeathEvents", "GetDefenseEvents", "GetHitstopResolver", "GetTimeEffectResults",

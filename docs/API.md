@@ -5,9 +5,10 @@
 `src/shared/CombatAPI.lua` returns a frozen module table. Current methods and exported types:
 
 `CombatAPI.Version` remains the integer API generation (`1`) for existing
-consumers. `CombatAPI.SemVer` reports the package release version (`0.1.4`),
+consumers. `CombatAPI.SemVer` reports the package release version (`0.2.0`),
 while `CombatAPI.Contracts` exposes independently versioned serialized
-contracts, including the attack catalog manifest and combat state schema.
+contracts, including the attack/action catalog manifests and combat state
+schema.
 See [PUBLIC_API.md](PUBLIC_API.md) for the compatibility boundary and
 versioning/deprecation policy.
 
@@ -106,6 +107,21 @@ no `MovementStateComponent`, and `MovementStateRequirementFailed` when its
 current state is outside the declared set.
 `DurationModel` supports `Phased` (the default Startup/Active/Recovery cycle),
 `Instant` (one simulation frame), and `Persistent` (active until cancelled).
+`CombatAPI.CombatActionDefinition.new` accepts optional `GameplayEvents`.
+Each entry has a positive `FrameOffset`, a registered gameplay event `Type`,
+and serializable `Parameters`. The pipeline validates handler references when
+registering the definition or catalog, then dispatches the immutable event
+synchronously from `World:Step` at the declared frame, before advancing the
+action phase. Events at the same offset preserve definition order. Handlers
+registered with `World:RegisterGameplayActionEventHandler` receive the action event
+fields `ActionId`, `ActionDefinitionId`, and `EventIndex` in addition to
+`Type`, `Frame`, `OwnerId`, and `Parameters`. They must mutate only
+authoritative state that participates in rollback/replay;
+presentation effects should be driven from confirmed events instead.
+Gameplay event parameters are defensively copied and recursively frozen, with
+256 entries and depth 8 maximum. Action catalog manifest v2 pins these events;
+legacy manifest v1 remains valid only when current definitions have no
+gameplay events.
 For content that must be validated and pinned across rollback, register
 definitions with `CombatAPI.CombatActionCatalog`, assign a positive integer
 content version, seal the catalog, and pass it to
@@ -179,7 +195,8 @@ CombatAPI.UnregisterPlugin(world, id)
 
 The module exports `APIContext`, `EventTypes`, `APIResult`, `APIError`, `Plugin`,
 `PluginCapability`, `PluginContext`, `PluginProfile`, `PluginState`,
-`Simulation`, `CombatActionProfiles`, `CombatActionCatalog`, `ReplayRecording`,
+`Simulation`, `CombatActionProfiles`, `CombatActionDefinition`,
+`CombatActionCatalog`, `ReplayRecording`,
 `Attack`, `AttackInstance`, `AttackCatalog`, `CollisionWorld`,
 `CollisionTopologyCatalog`, `Hitbox`, `Hurtbox`, and `OffensiveProperties`.
 The profiles expose definition-only `Melee()`,
@@ -207,6 +224,12 @@ Plugin, dependency, and capability versions use the numeric `major.minor.patch`
 form; malformed capability versions are returned as `InvalidCapabilityVersion`.
 `GetEventBus()` returns the World's shared EventBus; the public Luau contract
 describes its subscription, dispatch, error-query, and teardown methods.
+`APIContext:Subscribe`, `APIContext:On`, and `EventBus:Subscribe` accept
+`EventSubscriptionOptions`: `Priority` orders callbacks from highest to lowest
+(subscription order breaks ties), while filters can be supplied under `Filter`
+or directly through `EntityId`, `SourceSystem`, `AttackerId`, `DefenderId`, and
+`Predicate`. A predicate receives the immutable event and must return `true` to
+match; a predicate error is treated as a non-match and does not abort dispatch.
 The context and its registry view become invalid when the plugin stops; a
 retained registry view then returns empty/false results rather than accessing
 the destroyed resolver, and context-owned subscriptions/capabilities are
@@ -283,7 +306,7 @@ The following accessors exist in `src/shared/Core/World.lua`:
 
 | Area | Accessors |
 |---|---|
-| Entities / API | `CreateEntity`, `GetEntity`, `HasEntity`, `DestroyEntity`, `RespawnEntity`, `DisconnectPeer`, `AttachCharacter`, `DetachCharacter`, `ReattachCharacter`, `GetCharacterRoot`, `GetCharacterPart`, `GetEntities`, `GetCombatAPI`, `GetAPIContext`, `GetEvents`, `GetDiagnostics`, `GetDeterminismViolations`, `GetExecutionContext`, `GetExternalEffectGate`, `GetCombatStateSchema`, `RegisterCombatComponentFactory`, `RegisterCombatStateProvider`, `RegisterGameplayEventHandler`, `ScheduleGameplayEvent`, `ScheduleGameplayEventAfter`, `GetGameplayScheduler`, `CaptureCombatState`, `RestoreCombatState`, `HashCombatState`, `CompareCombatStates`, `SetCollisionWorld`, `GetCollisionWorld` |
+| Entities / API | `CreateEntity`, `GetEntity`, `HasEntity`, `DestroyEntity`, `RespawnEntity`, `DisconnectPeer`, `AttachCharacter`, `DetachCharacter`, `ReattachCharacter`, `GetCharacterRoot`, `GetCharacterPart`, `GetEntities`, `GetCombatAPI`, `GetAPIContext`, `GetEvents`, `GetDiagnostics`, `GetDeterminismViolations`, `GetExecutionContext`, `GetExternalEffectGate`, `GetCombatStateSchema`, `RegisterCombatComponentFactory`, `RegisterCombatStateProvider`, `RegisterGameplayEventHandler`, `RegisterGameplayActionEventHandler`, `ScheduleGameplayEvent`, `ScheduleGameplayEventAfter`, `GetGameplayScheduler`, `CaptureCombatState`, `RestoreCombatState`, `HashCombatState`, `CompareCombatStates`, `SetCollisionWorld`, `GetCollisionWorld` |
 | Simulation / collision | `GetSimulation`, `GetCollisionWorld`, `GetDamageResolver`, `GetStatusEffectResolver`, `GetReactionResolver`, `GetDefenseResolver`, `GetCombatResolver`, `GetMotionResolver` |
 | Collision pipeline data | `GetCombatResolutionEvents`, `GetCounterResults`, `GetDamageRequests`, `GetDamageEvents`, `GetHealthChangedEvents`, `GetDeathEvents`, `GetDefenseEvents`, `GetMotionResults` |
 | Protection / consequences | `GetProtectionResolver`, `GetProtectionResults`, `GetArmorResolver`, `GetArmorResults`, `GetGuardResolver`, `GetGuardEvents`, `GetGuardResults`, `GetHitstopResolver`, `GetTimeEffectResults` |

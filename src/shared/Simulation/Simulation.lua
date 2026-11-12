@@ -77,6 +77,7 @@ function Simulation.new(world, options)
 		return self.ExecutionContext == "Normal"
 	end
 	self.CommandHandlers = {}
+	self.GameplayActionEventHandlers = {}
 	self.DeterminismGuard = DeterminismGuard.new(function()
 		return self.ExecutionContext
 	end)
@@ -224,6 +225,31 @@ end
 
 function Simulation:RegisterGameplayEventHandler(typeId, handler)
 	return self:RegisterScheduledHandler(typeId, handler)
+end
+
+function Simulation:RegisterGameplayActionEventHandler(typeId, handler)
+	assert(type(typeId) == "string" and #typeId > 0 and #typeId <= 96,
+		"Gameplay action event type must be a non-empty string")
+	assert(type(handler) == "function", "Gameplay action event handler must be a function")
+	if self.GameTime:GetFrame() > 0 or self.DeterministicScheduler.NextId > 0
+		or self.FrameCommandBuffer:GetAcceptedCount() > 0 then
+		return false, "HandlerRegistryLocked"
+	end
+	if self.GameplayActionEventHandlers[typeId] then return false, "HandlerAlreadyRegistered" end
+	self.GameplayActionEventHandlers[typeId] = handler
+	return true
+end
+
+function Simulation:_HasGameplayActionEventHandler(typeId)
+	return self.GameplayActionEventHandlers[typeId] ~= nil
+end
+
+function Simulation:_DispatchGameplayActionEvent(typeId, event)
+	assert(type(typeId) == "string" and event.Type == typeId,
+		"Gameplay action event type does not match its handler")
+	local handler = self.GameplayActionEventHandlers[typeId]
+	assert(handler, ("No gameplay event handler registered for %s"):format(typeId))
+	handler(table.freeze(event))
 end
 
 function Simulation:ScheduleEvent(frame, typeId, ownerId, parameters, intervalFrames)

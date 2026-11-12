@@ -63,11 +63,12 @@ essas duas execuções não são suficientes para concluir regressão ou ganho.
 
 ## Pendências para fechar as fases
 
-A suíte automatizada já passou no Roblox Studio. Para fechar a validação geral,
-investigar a duplicação no place e os avisos de asset, executar
-`CombatMultiplayerSmokeTest.server.lua` com dois clientes e obter uma linha de
+A suíte automatizada já passou no Roblox Studio em execuções anteriores. Para
+fechar a validação geral, investigar a duplicação no place e os avisos de asset,
+executar o exemplo de consumidor como script independente e obter uma linha de
 base pré-CustomData do `CombatStabilizationBenchmark.server.lua` com os mesmos
-atributos e ambiente.
+atributos e ambiente. O smoke multiplayer foi confirmado pelo usuário como
+concluído sem erros, mas sem registro do número de clientes.
 
 
 ## Continuação do roadmap (Etapas A a C)
@@ -75,10 +76,10 @@ atributos e ambiente.
 | Etapa | Estado | Evidência / pendência |
 |---|---|---|
 | A — Consumidor de referência | Parcial, exemplo revisado e regressão adicionada | `docs/examples/CustomDataConsumer.server.lua` usa exports públicos para definir ataque, override, catálogo, hitbox e snapshot/restore. A revisão encontrou e corrigiu o uso incorreto de `owner:AddComponent(hitbox)`: `Hitbox` é estado de `CollisionWorld`, não um componente genérico com contrato próprio de snapshot. O exemplo agora usa `CollisionWorld:RegisterHitbox`; `CombatPublicSurfaceTest` cobre captura/restauração pública de override e geometria. Ainda precisa ser executado em Studio como script independente. |
-| B — Contrato estável | Parcial, contrato documentado | `docs/PUBLIC_API.md`, `CombatAPI.SemVer`, `CombatAPITypes`, exports públicos e `CombatPublicSurfaceTest` adicionados. Tipagem estrita completa (`--!strict` em toda a superfície), política pós-1.0.0 validada e mapeamento específico de todos os códigos de erro ainda não estão concluídos. |
-| C — Infraestrutura | Runner executado com sucesso; pendências de ambiente | 61 módulos passaram após correção da colisão e do inventário. O runner deduplica módulos e bloqueia inicialização repetida. O place ainda contém cópias duplicadas; o smoke de dois clientes e a análise da origem dessas duplicatas seguem pendentes. |
+| B — Contrato estável | Implementação concluída; usuário informou zero erros na execução seguinte | `PUBLIC_API.md` define SemVer/depreciação e fronteira público-interno; `CombatAPITypes` cobre facade, eventos, propriedades e plugins; `ResolverErrorMap` centraliza resultados do resolver. A confirmação não incluiu log/contagem e a análise `luau-lsp` local segue indisponível. |
+| C — Infraestrutura | Runner/CI implementados; confirmação de ambiente parcial | O usuário confirmou uma suíte aprovada e smoke sem erros, mas sem contagem/logs atuais. A origem das cópias duplicadas do place e os avisos de asset da execução anterior ainda não têm resolução registrada. |
 
-A prioridade da Etapa D permanece pendente (decisão D8). As Etapas A e B continuam pré-requisitos antes de iniciar novas capacidades.
+A decisão D8 foi resolvida pelo usuário: opção (b), aprofundar capacidades antes de divulgar. A execução independente do consumidor da Etapa A continua pendente; o primeiro incremento de D foi implementado por solicitação do usuário, mas não será considerado validado até a execução Studio correspondente.
 
 
 ## Continuação — contrato público (11 nov 2026)
@@ -317,3 +318,39 @@ Verificação fora do Studio (harness Luau com stubs de `Vector3`/`CFrame`): 59 
   usuário antecede esta migração, e o analisador `luau-lsp` não pôde ser
   instalado nesta máquina devido a um bloqueio ao atualizar o alias do Rojo.
   Análise Luau e suíte Studio continuam pendentes para este lote.
+
+## Fase B — contrato público ampliado (12 nov 2026)
+
+- A política SemVer/depreciação e a distinção entre superfície pública,
+  resolvers avançados e módulos internos estão documentadas em `PUBLIC_API.md`;
+  o `CHANGELOG.md` mantém as mudanças do contrato.
+- O mapeamento de falhas de lifecycle/registro do `PluginResolver` é centralizado
+  em `ResolverErrorMap`; códigos em pares do `PluginContext` ficam fora do
+  contrato de `APIError`.
+- `--!strict` e assinaturas tipadas cobrem agora a fachada, APIContext,
+  APIError/APIResult, PluginContext, Event/EventBus/EventFilter/Subscription/
+  EventTypes e OffensiveProperties. `CombatAPITypesTest` também verifica os
+  contratos de filtros de eventos e propriedades ofensivas.
+- A CI consultiva foi ampliada para analisar esses módulos. Build Rojo e
+  `git diff --check` passaram; depois desta nota o usuário informou que a
+  execução no Studio terminou com zero erros, sem fornecer log ou contagem.
+  `luau-lsp` ainda não foi executado localmente.
+
+## Etapa D — eventos declarativos de ações (12 nov 2026)
+
+- A primeira capacidade recebeu especificação e pseudocódigo em
+  `API_MELHORIAS.md` antes da implementação: eventos serializáveis associados
+  a offsets da timeline, sem executor embutido de projéteis ou hitboxes.
+- `CombatAPI.CombatActionDefinition` agora é export público tipado. Definições
+  validam offsets, referências de handler na inscrição do pipeline e payloads
+  serializáveis copiados/congelados; handlers recebem eventos imutáveis no
+  frame declarado, inclusive durante replay.
+- `CombatActionCatalog` manifest v2 fixa eventos declarados; manifest v1 é
+  aceito apenas quando as definições atuais não têm eventos.
+- `CombatPipelineTest` cobre limites/serialização, handler ausente, ordem de
+  despacho, fingerprint do catálogo e reprodução após restore.
+- Build Rojo e verificação de whitespace CRLF-aware passaram. A análise Luau
+  local e a execução Studio deste novo incremento ainda não foram feitas:
+  `aftman install` falhou ao criar o alias do Rojo porque o executável está
+  bloqueado por outro processo. A execução independente de
+  `CustomDataConsumer.server.lua` (Etapa A) continua pendente.

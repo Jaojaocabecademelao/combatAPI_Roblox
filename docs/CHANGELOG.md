@@ -6,6 +6,15 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 
 ### Adicionado
 
+- `CombatAPI.CombatActionDefinition` como export público tipado, com efeitos
+  declarativos `GameplayEvents` limitados a frames e payloads serializáveis.
+- `World:RegisterGameplayActionEventHandler` registra handlers separados dos
+  eventos agendados, sem alterar o contrato preexistente do scheduler.
+- O `CombatPipeline` valida handlers antes de registrar definições/catálogos e
+  despacha eventos imutáveis na timeline; efeitos são reproduzidos ao atravessar
+  novamente seus frames após rollback.
+- `CombatActionCatalog` manifest v2 fixa eventos declarados e ainda aceita
+  manifest v1 apenas para conteúdo sem eventos.
 - Contratos Luau explícitos para perfil, dependências, implementação, estado, contexto e capacidade de plugins; os métodos de registro e ciclo de vida agora retornam `APIResult<PluginResolverResult>` em vez de `any`, e `CombatAPI` exporta `PluginCapability` e `PluginContext` para o fluxo do plugin.
 - A superfície tipada de plugins agora inclui a vista de registry, assinaturas de callbacks de lifecycle/eventos e códigos de falha de capabilities.
 - `PluginContext:GetEventBus()` e `APIContext:GetEvents()` agora usam o contrato público tipado de `EventBus`, incluindo operações de inscrição, dispatch, consulta de erros e teardown.
@@ -27,7 +36,11 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 - Os contratos públicos da `Simulation` agora descrevem as opções reais do
   construtor (RNG, buffer de comandos e scheduler determinístico), eventos
   agendados, ciclo de vida de snapshots e operações determinísticas.
-- A análise Luau consultiva da CI inclui `CombatAPI.lua` e `APIContext.lua`.
+- A análise Luau consultiva da CI inclui a fachada, os contratos públicos, os
+  módulos de eventos e `OffensiveProperties`.
+- Os módulos de evento e `OffensiveProperties` agora têm contratos Luau
+  explícitos; filtros de inscrição aceitam opções tipadas e a fachada tipa o
+  construtor de propriedades ofensivas.
 - Documentação de importação dos tipos e exemplo tipado de `AttackOptions` e
   `AttackInstanceOptions`.
 
@@ -40,6 +53,8 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 - A análise `luau-lsp` desta alteração ainda precisa ser executada na CI e
   revisada; testes de runtime no Roblox Studio também permanecem pendentes para
   esta revisão.
+- Os handlers de eventos de ações continuam sendo código do jogo e precisam
+  obedecer às regras de determinismo e rollback documentadas.
 
 
 ### Corrigido
@@ -50,6 +65,9 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 
 ### Alterado
 
+- O pacote avança para `0.2.0` em `CombatAPI.SemVer` e `wally.toml`, refletindo
+  a adição compatível do construtor público e da timeline declarativa.
+
 - Falhas de plugin retornadas por `CombatAPI.RegisterPlugin`, `StartPlugin`, `StopPlugin`, `UnregisterPlugin`, `EnablePlugin` e `DisablePlugin`, e pelos métodos equivalentes de `APIContext`, passam a usar um `APIError.Code` específico (`NotFound`, `AlreadyExists`, `InvalidArgument`, `PermissionDenied`, `Disabled`, `Destroyed`, `InternalError` ou `InvalidOperation`) em vez de sempre `InvalidOperation`. O código original do resolver continua em `Error.Context.ResolverCode` e `Error.Message` mantém o mesmo valor. A tabela completa está em [`PUBLIC_API.md`](PUBLIC_API.md).
 - A conversão de resultado de resolver em `APIError` passa a viver em um único módulo, `Events/ResolverErrorMap`, usado por `CombatAPI` e `APIContext` (antes havia duas cópias).
 
@@ -59,7 +77,7 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 
 ### Compatibilidade
 
-- Consumidores que comparavam `Error.Code == "InvalidOperation"` para qualquer falha de plugin precisam ramificar pelo novo código ou por `Context.ResolverCode`. A mudança é permitida antes de 1.0.0 (ver `PUBLIC_API.md`), mas `CombatAPI.SemVer` não foi alterado nesta revisão; defina o incremento ao publicar.
+- Consumidores que comparavam `Error.Code == "InvalidOperation"` para qualquer falha de plugin precisam ramificar pelo novo código ou por `Context.ResolverCode`. A mudança é permitida antes de 1.0.0 (ver `PUBLIC_API.md`); a versão de pacote registrada nesta atualização é `0.2.0`.
 - Códigos de resolver desconhecidos continuam mapeados para `InvalidOperation`.
 - Cobertura: `CombatPluginErrorMappingTest` (falhas reais do resolver pelo facade e pelo `APIContext`).
 

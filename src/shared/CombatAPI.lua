@@ -32,6 +32,7 @@ type PublicCombatAPI = CombatAPITypes.CombatAPI
 type WorldType = CombatAPITypes.World
 type APIResultType<T> = CombatAPITypes.APIResult<T>
 type PluginResolverResult = CombatAPITypes.PluginResolverResult
+type CombatActionDefinitionModule = CombatAPITypes.CombatActionDefinitionModule
 
 local function wrapPluginResult(result: PluginResolverResult, world: WorldType?): APIResultType<PluginResolverResult>
 	local err: CombatAPITypes.APIError? = nil
@@ -46,7 +47,7 @@ local CombatAPI = {
 	-- Version is retained as the numeric API generation for existing consumers.
 	Version = 1,
 	-- SemVer describes the package/API release independently from serialized contracts.
-	SemVer = "0.1.4",
+	SemVer = "0.2.0",
 	Contracts = table.freeze({
 		NetworkMessage = NetworkMessage.Version,
 		CombatActionDefinition = CombatActionDefinition.Version,
@@ -121,6 +122,7 @@ CombatAPI.PluginProfile = PluginProfile
 CombatAPI.PluginState = PluginState
 CombatAPI.Simulation = Simulation
 CombatAPI.CombatActionProfiles = CombatActionProfiles
+CombatAPI.CombatActionDefinition = CombatActionDefinition
 CombatAPI.CombatActionCatalog = CombatActionCatalog
 CombatAPI.ReplayRecording = ReplayRecording
 CombatAPI.RobloxRemoteEventAdapter = RobloxRemoteEventAdapter

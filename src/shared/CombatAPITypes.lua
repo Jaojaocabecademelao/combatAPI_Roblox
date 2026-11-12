@@ -21,6 +21,18 @@ export type OffensiveProperties = {
 	CustomData: CustomData?,
 }
 
+export type OffensivePropertiesOptions = {
+	Damage: Damage?,
+	Hitstun: number?,
+	HasHitstun: boolean?,
+	Priority: number?,
+	CanClash: boolean?,
+	Defense: Defense?,
+	CanBlock: boolean?,
+	CanParry: boolean?,
+	CustomData: CustomData?,
+}
+
 export type AttackOptions = {
 	Id: EntityId?,
 	Damage: Damage?,
@@ -107,15 +119,27 @@ export type Event = {
 	[string]: any,
 }
 
+export type EventFilterOptions = {
+	EntityId: EntityId?,
+	SourceSystem: string?,
+	AttackerId: EntityId?,
+	DefenderId: EntityId?,
+	Predicate: ((Event) -> boolean)?,
+}
+
+export type EventFilter = EventFilterOptions & {
+	Matches: (self: EventFilter, event: Event) -> boolean,
+}
+
 export type EventCallback = (event: Event, context: any) -> ()
 export type EventSubscription = {
 	Disconnect: (self: EventSubscription) -> boolean,
 	IsConnected: (self: EventSubscription) -> boolean,
 	GetId: (self: EventSubscription) -> number,
 }
-export type EventSubscriptionOptions = {
+export type EventSubscriptionOptions = EventFilterOptions & {
 	Priority: number?,
-	Filter: { [string]: any }?,
+	Filter: EventFilterOptions?,
 }
 
 export type EventBus = {
@@ -238,6 +262,8 @@ export type World = {
 	GetCombatAPI: (self: World) -> any,
 	GetSimulation: (self: World) -> Simulation?,
 	SetSimulation: (self: World, simulation: Simulation) -> Simulation,
+	RegisterGameplayEventHandler: (self: World, typeId: string, handler: (ScheduledGameplayEvent) -> ()) -> (boolean, string?),
+	RegisterGameplayActionEventHandler: (self: World, typeId: string, handler: (ActionGameplayEvent) -> ()) -> (boolean, string?),
 	Step: (self: World, deltaTime: number, frame: number?, time: number?) -> (),
 	CaptureCombatState: (self: World) -> any,
 	RestoreCombatState: (self: World, snapshot: any, options: { [string]: any }?) -> (boolean, string?),
@@ -283,6 +309,16 @@ export type ScheduledGameplayEvent = {
 	IntervalFrames: number?,
 }
 
+export type ActionGameplayEvent = {
+	Type: string,
+	Frame: number,
+	OwnerId: EntityId,
+	Parameters: { [string]: any },
+	ActionId: EntityId,
+	ActionDefinitionId: EntityId,
+	EventIndex: number,
+}
+
 export type Simulation = {
 	World: World,
 	Frame: number,
@@ -305,6 +341,7 @@ export type Simulation = {
 	QueueCommand: (self: Simulation, command: { [string]: any }) -> (any?, boolean | string?, string?),
 	RegisterScheduledHandler: (self: Simulation, typeId: string, handler: (ScheduledGameplayEvent) -> ()) -> (boolean, string?),
 	RegisterGameplayEventHandler: (self: Simulation, typeId: string, handler: (ScheduledGameplayEvent) -> ()) -> (boolean, string?),
+	RegisterGameplayActionEventHandler: (self: Simulation, typeId: string, handler: (ActionGameplayEvent) -> ()) -> (boolean, string?),
 	ScheduleEvent: (self: Simulation, frame: number, typeId: string, ownerId: EntityId?, parameters: { [string]: any }?, intervalFrames: number?) -> (number?, string?),
 	ScheduleGameplayEvent: (self: Simulation, frame: number, typeId: string, ownerId: EntityId?, parameters: { [string]: any }?, intervalFrames: number?) -> (number?, string?),
 	ScheduleGameplayEventAfter: (self: Simulation, delayFrames: number, typeId: string, ownerId: EntityId?, parameters: { [string]: any }?, intervalFrames: number?) -> (number?, string?),
@@ -381,6 +418,14 @@ export type APIResultModule = {
 	is: (value: any) -> boolean,
 }
 
+export type OffensivePropertiesModule = {
+	CustomDataLimits: { MaxEntries: number, MaxDepth: number },
+	NormalizeCustomData: (value: any, label: string) -> CustomData?,
+	CanonicalizeCustomData: (customData: CustomData?) -> string?,
+	new: (options: OffensivePropertiesOptions?) -> OffensiveProperties,
+	WithCustomData: (properties: OffensiveProperties, customData: CustomData?) -> OffensiveProperties,
+}
+
 export type PluginModule = {
 	new: (profile: PluginProfile | PluginProfileOptions, implementation: PluginImplementation?) -> Plugin,
 }
@@ -417,6 +462,57 @@ export type AttackModule = {
 
 export type AttackInstanceModule = {
 	new: (attack: Attack, ownerEntity: any?, idGenerator: any?, options: AttackInstanceConstructorOptions?) -> AttackInstance,
+}
+
+export type CombatActionGameplayEventDefinition = {
+	FrameOffset: number,
+	Type: string,
+	Parameters: { [string]: any },
+}
+
+export type CombatActionGameplayEventOptions = {
+	FrameOffset: number,
+	Type: string,
+	Parameters: { [string]: any }?,
+}
+
+export type CombatActionDefinitionOptions = {
+	Id: EntityId,
+	StartupFrames: number?,
+	ActiveFrames: number?,
+	RecoveryFrames: number?,
+	DurationModel: string?,
+	Cancelable: boolean?,
+	Tags: { string }?,
+	Requirements: {
+		Resources: { [string]: number }?,
+		RequiredStatusTags: { string }?,
+		ForbiddenStatusTags: { string }?,
+		MovementStates: { string }?,
+	}?,
+	Costs: { Resources: { [string]: number } }?,
+	GameplayEvents: { CombatActionGameplayEventOptions }?,
+}
+
+export type CombatActionDefinition = {
+	Version: number,
+	Id: EntityId,
+	StartupFrames: number,
+	ActiveFrames: number,
+	RecoveryFrames: number,
+	DurationModel: string,
+	Cancelable: boolean,
+	Tags: { string },
+	Requirements: { [string]: any },
+	Costs: { Resources: { [string]: number } },
+	GameplayEvents: { CombatActionGameplayEventDefinition },
+	GetTotalFrames: (self: CombatActionDefinition) -> number?,
+}
+
+export type CombatActionDefinitionModule = {
+	Version: number,
+	DurationModel: { [string]: string },
+	new: (options: CombatActionDefinitionOptions?) -> CombatActionDefinition,
 }
 
 export type CollisionTopologyCatalog = {
@@ -459,6 +555,7 @@ export type CombatAPI = {
 	PluginProfile: PluginProfileModule,
 	PluginState: PluginStateModule,
 	CombatActionProfiles: any,
+	CombatActionDefinition: CombatActionDefinitionModule,
 	CombatActionCatalog: any,
 	ReplayRecording: any,
 	RobloxRemoteEventAdapter: any,
@@ -469,7 +566,7 @@ export type CombatAPI = {
 	CollisionTopologyCatalog: CollisionTopologyCatalogModule,
 	Hitbox: any,
 	Hurtbox: any,
-	OffensiveProperties: any,
+	OffensiveProperties: OffensivePropertiesModule,
 }
 
 return table.freeze({})

@@ -3,7 +3,7 @@ local Serializer = require(script.Parent.Parent.Simulation.StateSerializer)
 
 local Catalog = {}
 Catalog.__index = Catalog
-Catalog.Version = 1
+Catalog.Version = 2
 
 local function validId(id)
 	return (type(id) == "string" and id ~= "")
@@ -22,7 +22,7 @@ local function idLess(left, right)
 end
 
 local function definitionData(definition)
-	return {
+	local data = {
 		Id = definition.Id,
 		DefinitionVersion = definition.Version,
 		StartupFrames = definition.StartupFrames,
@@ -39,6 +39,17 @@ local function definitionData(definition)
 		},
 		Costs = { Resources = Serializer.CloneSerializable(definition.Costs.Resources) },
 	}
+	if #definition.GameplayEvents > 0 then
+		data.GameplayEvents = {}
+		for index, event in ipairs(definition.GameplayEvents) do
+			data.GameplayEvents[index] = {
+				FrameOffset = event.FrameOffset,
+				Type = event.Type,
+				Parameters = Serializer.CloneSerializable(event.Parameters),
+			}
+		end
+	end
+	return data
 end
 
 function Catalog.new()
@@ -150,13 +161,21 @@ function Catalog:CaptureManifest()
 		})
 	end
 	table.sort(entries, function(left, right) return idLess(left.Id, right.Id) end)
-	return { Version = 1, Entries = entries }
+	return { Version = Catalog.Version, Entries = entries }
 end
 
 function Catalog:ValidateManifest(manifest)
 	if type(manifest) ~= "table" or getmetatable(manifest) ~= nil
-		or manifest.Version ~= 1 or type(manifest.Entries) ~= "table" then
+		or (manifest.Version ~= 1 and manifest.Version ~= Catalog.Version)
+		or type(manifest.Entries) ~= "table" then
 		return false, "Invalid CombatActionCatalog manifest"
+	end
+	if manifest.Version == 1 then
+		for _, definition in pairs(self.Definitions) do
+			if #definition.GameplayEvents > 0 then
+				return false, "Legacy CombatActionCatalog manifest cannot validate definitions with gameplay events"
+			end
+		end
 	end
 	local entries = manifest.Entries
 	local count, maxIndex = 0, 0
@@ -169,6 +188,9 @@ function Catalog:ValidateManifest(manifest)
 	end
 	if count ~= maxIndex then return false, "CombatActionCatalog manifest entries must be a dense array" end
 	local expected = self:CaptureManifest()
+	if manifest.Version == 1 then
+		expected.Version = 1
+	end
 	local okActual, actualText = pcall(Serializer.Serialize, manifest)
 	local okExpected, expectedText = pcall(Serializer.Serialize, expected)
 	if not okActual or not okExpected then return false, "CombatActionCatalog manifest is not serializable" end

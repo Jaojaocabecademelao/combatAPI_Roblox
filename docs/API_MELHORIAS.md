@@ -191,6 +191,77 @@ significa que os perfis atuais já controlem movimento, hitboxes ou projéteis:
 as responsabilidades e os limites de cada contrato precisam continuar
 explícitos.
 
+### Primeiro incremento: eventos declarativos da timeline
+
+O primeiro incremento usa handlers de gameplay já registrados, sem introduzir
+um executor de projéteis, hitboxes ou dano. Uma definição pode declarar eventos
+serializáveis associados a frames da sua timeline:
+
+```lua
+local fireball = CombatAPI.CombatActionDefinition.new({
+    Id = "fighter.special.fireball",
+    StartupFrames = 10,
+    ActiveFrames = 1,
+    RecoveryFrames = 24,
+    GameplayEvents = {
+        {
+            FrameOffset = 10,
+            Type = "combat.projectile.spawn.v1",
+            Parameters = { ProjectileId = "projectile.fireball" },
+        },
+    },
+})
+```
+
+Contrato inicial:
+
+- `FrameOffset` é um inteiro positivo relativo ao `StartFrame`; o handler é
+  chamado sincronicamente durante `World:Step`, antes de a ação avançar sua
+  fase naquele frame. Eventos no mesmo frame mantêm a ordem declarada.
+- A definição é validada na construção: offsets devem caber na duração de uma
+  ação finita; tipo do evento precisa ser um identificador válido; parâmetros
+  devem ser uma tabela serializável sem metatable, funções ou referências
+  Roblox. A API guarda cópia congelada dos parâmetros.
+- Antes do registro da definição/catálogo no pipeline, cada `Type` precisa ter
+  um handler registrado com `World:RegisterGameplayActionEventHandler`. Uma
+  referência ausente é reportada com o caminho da definição, antes de a ação
+  poder começar.
+- O handler recebe `Type`, `Frame`, `OwnerId`, `Parameters`, `ActionId`,
+  `ActionDefinitionId` e `EventIndex`. Ele integra a ação aos sistemas do jogo;
+  a CombatAPI não assume como criar um projétil ou alterar uma hitbox.
+- O handler executa durante replay quando a restauração avança novamente pelo
+  frame declarado. Portanto, deve alterar apenas estado autoritativo
+  restaurável e não deve depender de relógio real, aleatoriedade externa ou
+  efeitos de apresentação.
+- O catálogo inclui os eventos no manifest. Manifestos antigos sem eventos
+  continuam válidos apenas quando as definições atuais também não declaram
+  eventos; conteúdo divergente deve ser rejeitado.
+
+Pseudocódigo do executor:
+
+```lua
+for effectIndex, effect in ipairs(action.Definition.GameplayEvents) do
+    local targetFrame = action.StartFrame + effect.FrameOffset
+    if action.CurrentFrame < targetFrame and targetFrame <= frame then
+        simulation:_DispatchGameplayActionEvent(effect.Type, {
+            Type = effect.Type,
+            Frame = targetFrame,
+            OwnerId = action.Owner.Id,
+            Parameters = effect.Parameters,
+            ActionId = action.Id,
+            ActionDefinitionId = action.Definition.Id,
+            EventIndex = effectIndex,
+        })
+    end
+end
+action:Advance(frame)
+```
+
+Critérios de aceite deste incremento: validação recusa offsets e parâmetros
+inválidos, o pipeline recusa handlers ausentes antes do início, os handlers
+recebem eventos no frame/ordem esperados, e replay após restaurar um snapshot
+reproduz os mesmos efeitos sem repetir eventos anteriores ao snapshot.
+
 **Benefício esperado:** movimentos complexos ficam mais fáceis de revisar,
 balancear, testar e mostrar em ferramentas, sem retirar do jogo a opção de
 usar componentes e resolvers diretamente.
