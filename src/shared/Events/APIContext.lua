@@ -1,5 +1,6 @@
 local APIResult = require(script.Parent.APIResult)
 local APIError = require(script.Parent.APIError)
+local ResolverErrorMap = require(script.Parent.ResolverErrorMap)
 local EventBus = require(script.Parent.EventBus)
 
 local APIContext = {}
@@ -8,7 +9,7 @@ APIContext.__index = APIContext
 local function wrapResolverResult(result, system, frame)
 	local err = nil
 	if not result.Success then
-		err = APIError.new(APIError.Code.InvalidOperation, tostring(result.Code), system, frame, { ResolverCode = tostring(result.Code) })
+		err = ResolverErrorMap.toError(result, system, frame)
 	end
 	return APIResult.new(result.Success, result, err)
 end

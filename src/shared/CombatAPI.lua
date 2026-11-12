@@ -3,6 +3,7 @@ local APIContext = require(script.Parent.Events.APIContext)
 local EventTypes = require(script.Parent.Events.EventTypes)
 local APIResult = require(script.Parent.Events.APIResult)
 local APIError = require(script.Parent.Events.APIError)
+local ResolverErrorMap = require(script.Parent.Events.ResolverErrorMap)
 local Plugin = require(script.Parent.Plugins.Plugin)
 local PluginProfile = require(script.Parent.Plugins.PluginProfile)
 local PluginState = require(script.Parent.Plugins.PluginState)
@@ -24,7 +25,7 @@ local CombatStateSchema = require(script.Parent.Combat.CombatStateSchema)
 local function wrapPluginResult(result, world)
 	local err = nil
 	if not result.Success then
-		err = APIError.new(APIError.Code.InvalidOperation, tostring(result.Code), "Plugins", world and world.CurrentFrame)
+		err = ResolverErrorMap.toError(result, "Plugins", world and world.CurrentFrame)
 	end
 	return APIResult.new(result.Success, result, err)
 end

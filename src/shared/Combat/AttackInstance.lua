@@ -1,9 +1,6 @@
 local AttackInstance = {}
 AttackInstance.__index = AttackInstance
 local OffensiveProperties = require(script.Parent.OffensiveProperties)
-local Serializer = require(script.Parent.Parent.Simulation.StateSerializer)
-
-local CUSTOM_DATA_LIMITS = { MaxEntries = 256, MaxDepth = 8 }
 
 local function mergeCustomData(base, overrides)
 	if overrides == nil then return base end
@@ -47,14 +44,7 @@ function AttackInstance.new(attack, ownerEntity, idGenerator, options)
 		})
 	end
 
-	local overrides
-	if rawOverrides ~= nil then
-		assert(type(rawOverrides) == "table" and getmetatable(rawOverrides) == nil,
-			"AttackInstance CustomDataOverrides must be a plain table")
-		local ok, clone = pcall(Serializer.CloneSerializable, rawOverrides, CUSTOM_DATA_LIMITS)
-		assert(ok, "AttackInstance CustomDataOverrides must be plain serializable data: " .. tostring(clone))
-		if next(clone) ~= nil then overrides = Serializer.Freeze(clone) end
-	end
+	local overrides = OffensiveProperties.NormalizeCustomData(rawOverrides, "AttackInstance CustomDataOverrides")
 	if overrides ~= nil then
 		properties = OffensiveProperties.WithCustomData(properties, mergeCustomData(properties.CustomData, overrides))
 	end

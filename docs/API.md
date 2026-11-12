@@ -192,7 +192,7 @@ definition, action catalog manifest, and replay recording formats.
 
 ## Attacks: `CustomData` por definição e instância
 
-`Attack.new({ CustomData = data })` aceita dados opcionais para consumidores de gameplay. O mesmo valor é exposto em `attack.CustomData` e `attack.OffensiveProperties.CustomData`. O conteúdo é opaco para a API: use tabelas simples serializáveis, sem metatables, ciclos, funções, Instances/userdata ou números não finitos. O limite é 256 entradas e profundidade 8; `{}` é normalizado para `nil`. Os dados são copiados defensivamente e congelados recursivamente.
+`Attack.new({ CustomData = data })` aceita dados opcionais para consumidores de gameplay. O mesmo valor é exposto em `attack.CustomData` e `attack.OffensiveProperties.CustomData`. O conteúdo é opaco para a API: use tabelas simples serializáveis, sem metatables, ciclos, funções, Instances/userdata ou números não finitos. O limite é 256 valores (a tabela raiz conta, então até 255 chaves em uma tabela plana) e profundidade 8; `{}` é normalizado para `nil`. Os dados são copiados defensivamente e congelados recursivamente.
 
 Para fornecer valores específicos para uma execução sem alterar a definição, use o quarto argumento em formato de opções:
 

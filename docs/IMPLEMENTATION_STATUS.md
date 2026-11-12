@@ -126,3 +126,17 @@ O mapeamento de falhas do facade de plugins agora preserva o código interno em 
 - O pacote está marcado como `private = true`. Isso permite validar a estrutura sem publicar nem presumir que o escopo Wally esteja reservado ao proprietário.
 - CI gera um ZIP de prévia com `wally package`; isso valida o empacotamento, não a instalação num jogo consumidor nem a publicação no registry.
 - O runner central já executa os módulos `*Test.lua` sequencialmente no Studio. `CombatMultiplayerSmokeTest.server.lua` permanece manual e separado por exigir dois clientes. O runner e a suíte ainda precisam de validação real no Roblox Studio; CI não declara os testes de runtime aprovados.
+
+
+## Revisão posterior — limites e canônico do catálogo (sem execução no Studio)
+
+Alterações desta revisão: `OffensiveProperties.CustomDataLimits` e `OffensiveProperties.NormalizeCustomData` passam a ser a fonte única de limites/normalização (reutilizada por `AttackInstance`, `AttackCatalog` e `CollisionWorld`); `AttackCatalog:Register` passa a usar `OffensiveProperties.CanonicalizeCustomData`, corrigindo a rejeição de `CustomData` com 128 a 255 chaves planas aceito por `Attack.new`; testes de fronteira foram adicionados a `CombatAttackCustomDataTest` e `CombatAttackCatalogRollbackTest`.
+
+Verificação realizada fora do Studio: 58 dos 61 módulos `*Test.lua` passaram num harness Luau com stubs mínimos de `Vector3`/`CFrame`, com o mesmo resultado antes e depois da alteração. `CombatAuthorityTest`, `CombatDocumentationTest` e `CombatTest` não rodam nesse harness (exigem `Instance.new`, a árvore do DataModel e APIs de `CFrame` não simuladas) e não foram avaliados. O novo teste do catálogo falha sem a correção e passa com ela. **A suíte completa precisa ser executada novamente no Roblox Studio antes de considerar esta revisão validada.**
+
+
+## Revisão posterior — códigos de erro de plugin (sem execução no Studio)
+
+Etapa B (mapeamento específico dos códigos de erro): falhas de plugin do facade `CombatAPI` e do `APIContext` deixam de ser sempre `InvalidOperation` e passam por `Events/ResolverErrorMap` (tabela em `docs/PUBLIC_API.md`; código original preservado em `Error.Context.ResolverCode`). Os códigos de capability (`CapabilityConflict`, `CapabilityNotFound`, `CapabilityNotDeclared`, `InvalidCapabilityId`, `InvalidCapabilityVersion`) estão mapeados, mas hoje só são devolvidos como pares `(valor, código)` pelo contexto do plugin; não foram exercitados via facade. Continuam pendentes nesta etapa a tipagem estrita completa da superfície pública e a política pós-1.0.0.
+
+Verificação fora do Studio (harness Luau com stubs de `Vector3`/`CFrame`): 59 dos 62 módulos `*Test.lua` passaram, com o mesmo resultado de antes para os demais; os mesmos três módulos que o harness não executa (`CombatAuthorityTest`, `CombatDocumentationTest`, `CombatTest`) continuam fora da verificação. `CombatPluginErrorMappingTest` falha com o comportamento antigo (`got InvalidOperation`) e passa com o mapeamento. `scripts/validate_test_inventory.py` aceita o inventário de 62 módulos. **A suíte completa precisa ser executada novamente no Roblox Studio.** `CombatAPI.SemVer` não foi alterado.

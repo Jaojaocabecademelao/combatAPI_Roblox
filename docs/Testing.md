@@ -27,6 +27,7 @@ de teste com dois clientes.
   versões de manifest/schema e uso público de `AttackCatalog`.
 - `CombatAPIPublicContractTest.lua`: verifica o registro de códigos estáveis,
   imutabilidade de `APIError`/`APIResult` e invariantes de sucesso/falha.
+- `CombatPluginErrorMappingTest.lua`: provoca falhas reais do `PluginResolver` pelo facade `CombatAPI` e pelo `APIContext` e verifica o `APIError.Code` mapeado, a preservação de `Context.ResolverCode`, `System` e `Frame`, a imutabilidade do erro e o fallback para `InvalidOperation`.
 - `examples/CustomDataConsumer.server.lua`: exemplo executável em um place de
   teste. Cria o World, catálogo, ataque, override derivado de frames, hitbox e
   snapshot/restore usando apenas exports públicos. Após restore, reacquire a

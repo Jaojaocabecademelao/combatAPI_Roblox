@@ -2,6 +2,23 @@
 
 Este arquivo registra mudanças do contrato público e de formatos de estado. A versão pública declarada em `src/shared/CombatAPI.lua` permanece **CombatAPI 1**. O projeto ainda não definiu uma política formal de SemVer para releases; as versões de schema/manifest abaixo são versões internas dos respectivos formatos, não números de release.
 
+## Não lançado
+
+### Alterado
+
+- Falhas de plugin retornadas por `CombatAPI.RegisterPlugin`, `StartPlugin`, `StopPlugin`, `UnregisterPlugin`, `EnablePlugin` e `DisablePlugin`, e pelos métodos equivalentes de `APIContext`, passam a usar um `APIError.Code` específico (`NotFound`, `AlreadyExists`, `InvalidArgument`, `PermissionDenied`, `Disabled`, `Destroyed`, `InternalError` ou `InvalidOperation`) em vez de sempre `InvalidOperation`. O código original do resolver continua em `Error.Context.ResolverCode` e `Error.Message` mantém o mesmo valor. A tabela completa está em [`PUBLIC_API.md`](PUBLIC_API.md).
+- A conversão de resultado de resolver em `APIError` passa a viver em um único módulo, `Events/ResolverErrorMap`, usado por `CombatAPI` e `APIContext` (antes havia duas cópias).
+
+### Corrigido
+
+- Os métodos `CombatAPI.*Plugin` não preenchiam `Error.Context.ResolverCode`, embora `PUBLIC_API.md` afirmasse isso; apenas `APIContext` o fazia.
+
+### Compatibilidade
+
+- Consumidores que comparavam `Error.Code == "InvalidOperation"` para qualquer falha de plugin precisam ramificar pelo novo código ou por `Context.ResolverCode`. A mudança é permitida antes de 1.0.0 (ver `PUBLIC_API.md`), mas `CombatAPI.SemVer` não foi alterado nesta revisão; defina o incremento ao publicar.
+- Códigos de resolver desconhecidos continuam mapeados para `InvalidOperation`.
+- Cobertura: `CombatPluginErrorMappingTest` (falhas reais do resolver pelo facade e pelo `APIContext`).
+
 ## CombatAPI 1 — suporte a `CustomData` em ataques (2026-11-11)
 
 ### Adicionado
@@ -13,6 +30,14 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 - Verificação do conteúdo das definições pelo manifest do catálogo.
 - Migração do `CombatStateSchema` v2 para v3; a nova versão evita que consumidores antigos ignorem silenciosamente overrides.
 - Contratos em [`API.md`](API.md), [`Rollback.md`](Rollback.md), [`Conventions.md`](Conventions.md) e [`CUSTOMDATA.md`](CUSTOMDATA.md).
+
+### Alterado
+
+- Os limites de `CustomData` (256 entradas, profundidade 8) passam a ter uma única definição, `OffensiveProperties.CustomDataLimits`, usada por propriedades, instância, catálogo e validação de snapshot; `OffensiveProperties.NormalizeCustomData` centraliza a normalização reutilizada por `AttackInstance`. Sem mudança de comportamento.
+
+### Corrigido
+
+- `AttackCatalog:Register` rejeitava `CustomData` com 128 a 255 chaves planas (aceito por `Attack.new`) porque o canônico do manifest era serializado com o mesmo limite usado na validação, mas o serializador conta chaves e valores enquanto a validação conta só valores. O canônico passa a usar `OffensiveProperties.CanonicalizeCustomData`, com limite de entradas dobrado. A documentação do limite foi esclarecida: 256 valores, contando a tabela raiz (até 255 chaves em uma tabela plana).
 
 ### Compatibilidade
 

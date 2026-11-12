@@ -122,7 +122,7 @@ local documentedTests = {
 	"CombatInputTest.lua", "CombatJuggleRollbackTest.lua",
 	"CombatMotionTest.lua", "CombatMovementComponentsRollbackTest.lua",
 	"CombatMovementStateTest.lua", "CombatNetworkingTest.lua",
-	"CombatPipelineTest.lua", "CombatPluginTest.lua",
+	"CombatPipelineTest.lua", "CombatPluginTest.lua", "CombatPluginErrorMappingTest.lua",
 	"CombatPredictionTest.lua", "CombatProtectionTest.lua",
 	"CombatReactionResolverRollbackTest.lua", "CombatReactionTest.lua",
 	"CombatReconciliationTest.lua", "CombatReplayRecordingTest.lua",

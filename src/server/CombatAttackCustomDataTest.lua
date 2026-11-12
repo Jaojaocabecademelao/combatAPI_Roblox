@@ -82,6 +82,20 @@ local invalidOverride = pcall(function()
 end)
 check(not invalidOverride, "Invalid instance overrides must be rejected")
 
+local OffensiveProperties = require(Shared.Combat.OffensiveProperties)
+local limits = OffensiveProperties.CustomDataLimits
+check(limits.MaxEntries == 256 and limits.MaxDepth == 8 and table.isfrozen(limits),
+	"CustomData limits must have a single frozen source of truth")
+-- A tabela raiz tambem conta como entrada: MaxEntries - 1 chaves planas e o maximo.
+local atLimit = {}
+for index = 1, limits.MaxEntries - 1 do atLimit["K" .. tostring(index)] = index end
+check(not rejects(atLimit), "MaxEntries - 1 flat CustomData keys must be accepted")
+check(pcall(function()
+	AttackInstance.new(attack, owner, nil, { CustomDataOverrides = atLimit })
+end), "MaxEntries - 1 flat override keys must be accepted")
+atLimit["K" .. tostring(limits.MaxEntries)] = 0
+check(rejects(atLimit), "MaxEntries flat keys must be rejected because the root table also counts")
+
 world:Destroy()
 print("CombatAttackCustomDataTest: PASS (" .. tostring(assertions) .. " assertions)")
 

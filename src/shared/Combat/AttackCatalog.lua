@@ -1,5 +1,6 @@
 -- Versioned registry of immutable Attack definitions.
 local Serializer = require(script.Parent.Parent.Simulation.StateSerializer)
+local OffensiveProperties = require(script.Parent.OffensiveProperties)
 -- The version is an explicit gameplay contract: increment it whenever scalar data,
 -- policy, or callback behavior changes. Functions/closures are deliberately not serialized.
 local AttackCatalog = {}
@@ -62,9 +63,9 @@ function AttackCatalog:Register(attack, version)
 	if customData ~= nil then
 		assert(type(customData) == "table" and getmetatable(customData) == nil,
 			"AttackCatalog CustomData must be a plain serializable table")
-		local ok, clone = pcall(Serializer.CloneSerializable, customData, { MaxEntries = 256, MaxDepth = 8 })
+		local ok, clone = pcall(Serializer.CloneSerializable, customData, OffensiveProperties.CustomDataLimits)
 		assert(ok, "AttackCatalog CustomData is invalid: " .. tostring(clone))
-		customDataCanonical = Serializer.Serialize(clone, { MaxEntries = 256, MaxDepth = 8 })
+		customDataCanonical = OffensiveProperties.CanonicalizeCustomData(clone)
 	end
 	self.Definitions[attack.Id] = attack
 	self.Versions[attack.Id] = version

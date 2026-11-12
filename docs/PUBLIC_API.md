@@ -50,6 +50,21 @@ Public operations that return `APIResult` use:
 - `Value`: the successful value, or operation-specific failure value;
 - `Error`: `nil` on success, otherwise an immutable `APIError` with `Code`, `Message`, `System`, optional `Frame`, and optional `Context`.
 
-`APIError.Code` values are stable identifiers, not user-facing prose. Consumers should branch on `Code`, not `Message`. Messages may become more descriptive between compatible releases. Resolver-specific result codes remain distinct from `APIError.Code`; plugin facade methods currently map them to `InvalidOperation` and preserve the original value in `Error.Context.ResolverCode.
+`APIError.Code` values are stable identifiers, not user-facing prose. Consumers should branch on `Code`, not `Message`. Messages may become more descriptive between compatible releases. Resolver-specific result codes remain distinct from `APIError.Code`; plugin facade methods (`CombatAPI.RegisterPlugin`, `StartPlugin`, `StopPlugin`, `UnregisterPlugin`, `EnablePlugin`, `DisablePlugin` and the equivalent `APIContext` methods) map them to the stable codes in the table below and preserve the original value in `Error.Context.ResolverCode`; `Error.Message` carries the same value.
 
 The recognized `APIError.Code` values are `InvalidArgument`, `InvalidEntity`, `InvalidOperation`, `NotFound`, `AlreadyExists`, `NotInitialized`, `Disabled`, `PermissionDenied`, `InternalError`, and `Destroyed`. `APIError.isCode(value)` can be used to check a code before branching on it. `APIError` and `APIResult` records are shallow-frozen; the optional `Context` table is caller-provided and must be treated as read-only by consumers.
+
+### Plugin result mapping
+
+| `APIError.Code` | Resolver result codes |
+|---|---|
+| `NotFound` | `PluginNotFound`, `CapabilityNotFound`, `DependencyMissing` |
+| `AlreadyExists` | `DuplicatePlugin`, `PluginAlreadyOwned`, `CapabilityConflict` |
+| `InvalidArgument` | `InvalidPlugin`, `InvalidCapabilityId`, `InvalidCapabilityVersion` |
+| `PermissionDenied` | `PermissionDenied`, `CapabilityNotDeclared` |
+| `Disabled` | `PluginDisabled` |
+| `Destroyed` | `WorldDestroyed` |
+| `InternalError` | `InitializationFailed`, `PluginRuntimeFailed`, `StopFailed` (an exception escaped plugin-owned code) |
+| `InvalidOperation` | `InvalidLifecycleState`, `PluginActive`, `ActiveDependents`, `DependencyCycle`, `DependencyVersionMismatch`, `DependencyFailed`, and any resolver code not listed here |
+
+Capability codes are returned by plugin contexts as `(value, code)` pairs rather than as `APIResult`; they are included so every known resolver code has a defined mapping. A resolver code added in a future release maps to `InvalidOperation` until it is listed here.

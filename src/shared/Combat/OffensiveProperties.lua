@@ -15,7 +15,7 @@ local function freeze(value)
 	return value
 end
 
-local CUSTOM_DATA_LIMITS = { MaxEntries = 256, MaxDepth = 8 }
+local CUSTOM_DATA_LIMITS = table.freeze({ MaxEntries = 256, MaxDepth = 8 })
 
 local function normalizeCustomData(value, label)
 	if value == nil then return nil end
@@ -25,6 +25,22 @@ local function normalizeCustomData(value, label)
 	assert(ok, label .. " must be plain serializable data: " .. tostring(clone))
 	if next(clone) == nil then return nil end
 	return Serializer.Freeze(clone)
+end
+
+-- Fonte unica dos limites e da normalizacao; AttackInstance, AttackCatalog e CollisionWorld reutilizam.
+OffensiveProperties.CustomDataLimits = CUSTOM_DATA_LIMITS
+OffensiveProperties.NormalizeCustomData = normalizeCustomData
+
+-- Serializer.Serialize conta chaves e valores, enquanto CloneSerializable conta so valores. Um dado ja
+-- validado com N valores tem no maximo N - 1 chaves, ou seja, ate 2N - 1 entradas ao serializar.
+local CUSTOM_DATA_CANONICAL_LIMITS = table.freeze({
+	MaxEntries = CUSTOM_DATA_LIMITS.MaxEntries * 2,
+	MaxDepth = CUSTOM_DATA_LIMITS.MaxDepth,
+})
+
+function OffensiveProperties.CanonicalizeCustomData(customData)
+	if customData == nil then return nil end
+	return Serializer.Serialize(customData, CUSTOM_DATA_CANONICAL_LIMITS)
 end
 
 local function normalizeDamage(value)
