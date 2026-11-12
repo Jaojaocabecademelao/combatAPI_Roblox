@@ -12,9 +12,26 @@ end
 return function()
 	local publicAPI: CombatAPITypes.CombatAPI = CombatAPI
 	local world: CombatAPITypes.World = publicAPI.CreateWorld()
-	local simulation: CombatAPITypes.Simulation = publicAPI.Simulation.new(world)
+	local simulationOptions: CombatAPITypes.SimulationOptions = {
+		FixedDeltaTime = 1 / 60,
+		MaxStepsPerUpdate = 5,
+		Seed = 42,
+		FrameCommandBuffer = { MaxCommandsPerFrame = 32, HistorySize = 12 },
+		DeterministicScheduler = { MaxEvents = 64 },
+	}
+	local simulation: CombatAPITypes.Simulation = publicAPI.Simulation.new(world, simulationOptions)
 	check(simulation:GetWorld() == world, "typed Simulation constructor associates with the World")
 	check(simulation:Update(0) == 0, "typed Simulation exposes its update method")
+	check(simulation:GetAlpha() == 0 and simulation:GetPendingStepCount() == 0,
+		"typed Simulation exposes interpolation and pending-step state")
+	local rng: CombatAPITypes.DeterministicRNG = simulation:GetRNG()
+	local randomSample = rng:NextNumber()
+	check(randomSample >= 0 and randomSample < 1 and rng:NextInteger(4, 4) == 4,
+		"typed Simulation exposes its deterministic RNG contract")
+	check(simulation:CanRestoreRollbackFrame(), "new typed Simulation is ready for rollback capture")
+	local simulationState = simulation:CaptureState()
+	check(simulation:RestoreState(simulationState), "typed Simulation state round-trips")
+	check(simulation:GetKernelStateHash() ~= "", "typed Simulation exposes a kernel state hash")
 	local topologyCatalog: CombatAPITypes.CollisionTopologyCatalog =
 		publicAPI.CollisionTopologyCatalog.new()
 	topologyCatalog:Register("types.contract.hitbox", 1, function(saved, owner)

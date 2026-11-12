@@ -24,6 +24,9 @@ Este arquivo registra mudanças do contrato público e de formatos de estado. A 
 - `CombatAPI.CollisionTopologyCatalog` é exportado e tipado para registrar
   fábricas versionadas necessárias à reconstrução de hitboxes/hurtboxes em
   snapshots não vazios.
+- Os contratos públicos da `Simulation` agora descrevem as opções reais do
+  construtor (RNG, buffer de comandos e scheduler determinístico), eventos
+  agendados, ciclo de vida de snapshots e operações determinísticas.
 - A análise Luau consultiva da CI inclui `CombatAPI.lua` e `APIContext.lua`.
 - Documentação de importação dos tipos e exemplo tipado de `AttackOptions` e
   `AttackInstanceOptions`.

@@ -247,20 +247,83 @@ export type World = {
 	Destroy: (self: World) -> boolean,
 }
 
+export type DeterministicRNG = {
+	NextNumber: (self: DeterministicRNG, minimum: number?, maximum: number?) -> number,
+	NextInteger: (self: DeterministicRNG, minimum: number, maximum: number) -> number,
+	GetState: (self: DeterministicRNG) -> any,
+	SetState: (self: DeterministicRNG, state: any) -> (),
+}
+
+export type FrameCommandBufferOptions = {
+	MaxCommandsPerFrame: number?,
+	HistorySize: number?,
+}
+
+export type DeterministicSchedulerOptions = {
+	CurrentFrame: number?,
+	MaxEvents: number?,
+}
+
 export type SimulationOptions = {
 	FixedDeltaTime: number?,
 	MaxStepsPerUpdate: number?,
 	Seed: number?,
+	RNG: DeterministicRNG?,
+	FrameCommandBuffer: FrameCommandBufferOptions?,
+	DeterministicScheduler: DeterministicSchedulerOptions?,
+}
+
+export type SimulationExecutionContext = "Normal" | "Replay" | "Rollback"
+
+export type ScheduledGameplayEvent = {
+	Id: number,
+	Frame: number,
+	Type: string,
+	OwnerId: EntityId?,
+	Parameters: { [string]: any },
+	Order: number,
+	IntervalFrames: number?,
 }
 
 export type Simulation = {
 	World: World,
 	Frame: number,
+	FixedDeltaTime: number,
+	MaxStepsPerUpdate: number,
+	Accumulator: number,
+	LastCompletedFrame: number,
+	ExecutionContext: SimulationExecutionContext,
 	GetWorld: (self: Simulation) -> World,
+	GetAlpha: (self: Simulation) -> number,
+	GetPendingStepCount: (self: Simulation) -> number,
+	GetGameTime: (self: Simulation) -> any,
+	GetScheduler: (self: Simulation) -> any,
+	GetDeterministicScheduler: (self: Simulation) -> any,
+	GetFrameCommandBuffer: (self: Simulation) -> any,
 	Step: (self: Simulation) -> (),
 	Update: (self: Simulation, deltaTime: number) -> number,
+	SetExecutionContext: (self: Simulation, context: SimulationExecutionContext) -> Simulation,
+	RegisterCommandHandler: (self: Simulation, commandType: string, handler: (Simulation, any) -> ()) -> (boolean, string?),
+	QueueCommand: (self: Simulation, command: { [string]: any }) -> (any?, boolean | string?, string?),
+	RegisterScheduledHandler: (self: Simulation, typeId: string, handler: (ScheduledGameplayEvent) -> ()) -> (boolean, string?),
+	RegisterGameplayEventHandler: (self: Simulation, typeId: string, handler: (ScheduledGameplayEvent) -> ()) -> (boolean, string?),
+	ScheduleEvent: (self: Simulation, frame: number, typeId: string, ownerId: EntityId?, parameters: { [string]: any }?, intervalFrames: number?) -> (number?, string?),
+	ScheduleGameplayEvent: (self: Simulation, frame: number, typeId: string, ownerId: EntityId?, parameters: { [string]: any }?, intervalFrames: number?) -> (number?, string?),
+	ScheduleGameplayEventAfter: (self: Simulation, delayFrames: number, typeId: string, ownerId: EntityId?, parameters: { [string]: any }?, intervalFrames: number?) -> (number?, string?),
+	GetGameplayScheduler: (self: Simulation) -> any,
+	GetLegacyScheduler: (self: Simulation) -> any,
+	GetDeterminismGuard: (self: Simulation) -> any,
+	GetRNG: (self: Simulation) -> DeterministicRNG,
+	GetExecutionContext: (self: Simulation) -> SimulationExecutionContext,
+	AssertDeterministicOperation: (self: Simulation, operation: string, details: any?) -> boolean,
+	CanRestoreRollbackFrame: (self: Simulation) -> boolean,
 	CaptureState: (self: Simulation) -> { [string]: any },
 	RestoreState: (self: Simulation, snapshot: { [string]: any }) -> (boolean, string?),
+	CaptureRecoveryState: (self: Simulation) -> { [string]: any },
+	ValidateRecoveryState: (self: Simulation, state: any) -> (boolean, string?),
+	RestoreRecoveryState: (self: Simulation, state: any) -> (boolean, string?),
+	GetKernelStateHash: (self: Simulation) -> string,
+	RestoreRollbackFrame: (self: Simulation, frame: number, rngState: any, accumulator: number?, schedulerNextId: number?, schedulerNextOrder: number?) -> boolean,
 }
 
 export type APIContext = {

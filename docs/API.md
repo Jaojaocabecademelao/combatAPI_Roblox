@@ -186,7 +186,10 @@ The profiles expose definition-only `Melee()`,
 `Projectile()`, and `AreaOfEffect()` examples for the shared action pipeline.
 Create a simulation with `CombatAPI.Simulation.new(world)` before capturing or
 restoring combat snapshots; this associates the simulation clock with the World.
-Its options include `FixedDeltaTime`, `MaxStepsPerUpdate`, and `Seed`.
+Its options include `FixedDeltaTime`, `MaxStepsPerUpdate`, and `Seed`, plus
+optional `RNG`, `FrameCommandBuffer`, and `DeterministicScheduler` settings for
+custom deterministic integrations. The typed constructor contract is in
+`CombatAPITypes.SimulationOptions`.
 Collision snapshots containing hitboxes or hurtboxes also require a sealed
 `CollisionTopologyCatalog` attached with `collisionWorld:SetTopologyCatalog`.
 Register a versioned factory for each region definition and set the matching

@@ -1,6 +1,6 @@
 # Status da implementação — CustomData
 
-Data da revisão: 2026-11-11
+Data da revisão: 2026-11-12
 
 Este relatório acompanha o plano `combatapi-customdata-plano.md`. Ele distingue a
 presença estática de código/testes da aprovação em runtime. Nenhuma fase que
@@ -268,3 +268,25 @@ Verificação fora do Studio (harness Luau com stubs de `Vector3`/`CFrame`): 59 
   geometria não vazia sem um `CollisionTopologyCatalog`. O facade agora expõe
   o catálogo; o teste e o exemplo configuram uma fábrica versionada. Build e
   execução da suíte ainda precisam ser repetidos para confirmar o resultado.
+
+
+## Continuação — execução completa no Studio (12 nov 2026)
+
+- O usuário confirmou `CombatTestRunner: PASS (63 tests)`, com todos os 63
+  testes executados e nenhuma falha após a inclusão da `Simulation` e do
+  `CollisionTopologyCatalog` na configuração do teste de superfície pública.
+- O benchmark no mesmo Output reportou `restored=true`; para a configuração
+  `entities=32`, `volumes=64`, `attackInstances=32`, `frames=30` e
+  `repetitions=3`, mediu captura média de 0,007295 s, serialização de
+  0,002893 s, validação de colisão de 0,001312 s, preparação de restore de
+  0,001691 s, step de 0,184594 s e restore/replay de 0,176639 s. Continua sem
+  baseline pré-CustomData comparável.
+- O Output ainda contém avisos de incompatibilidade de tipo do asset
+  `rbxassetid://203785492`; não foram falhas de teste. O smoke multiplayer
+  com dois clientes estava pendente naquela execução.
+- A cobertura tipada da `Simulation` foi ampliada para validar opções de
+  configuração, captura/restauração do estado e hash. Build Rojo e análise
+  Luau precisam ser repetidos após essas alterações.
+- Atualização posterior: o usuário confirmou que o smoke test terminou sem
+  erros. A pendência de execução do smoke está encerrada; não foram fornecidos
+  detalhes adicionais sobre número de clientes ou métricas.
