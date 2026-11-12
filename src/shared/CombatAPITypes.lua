@@ -360,7 +360,7 @@ export type AttackInstanceModule = {
 
 export type CollisionTopologyCatalog = {
 	Register: (self: CollisionTopologyCatalog, id: string, version: string | number, factory: (any, any?) -> any) -> CollisionTopologyCatalog,
-	Resolve: (self: CollisionTopologyCatalog, id: string, version: (string | number)?) -> ((any, any?) -> any)?, string?),
+	Resolve: (self: CollisionTopologyCatalog, id: string, version: (string | number)?) -> (((any, any?) -> any)?, (string | number)?),
 	CaptureManifest: (self: CollisionTopologyCatalog) -> { [string]: any },
 	ValidateManifest: (self: CollisionTopologyCatalog, manifest: any) -> (boolean, string?),
 	CreateRegion: (self: CollisionTopologyCatalog, saved: any, owner: any?) -> (any?, string?),

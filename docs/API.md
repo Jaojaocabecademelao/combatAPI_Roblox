@@ -179,9 +179,10 @@ CombatAPI.UnregisterPlugin(world, id)
 
 The module exports `APIContext`, `EventTypes`, `APIResult`, `APIError`, `Plugin`,
 `PluginCapability`, `PluginContext`, `PluginProfile`, `PluginState`,
-`Simulation`, `CombatActionProfiles`, `CombatActionCatalog`, `ReplayRecording`, `Attack`,
-`AttackInstance`, `AttackCatalog`, `CollisionWorld`, `Hitbox`, `Hurtbox`, and
-`OffensiveProperties`. The profiles expose definition-only `Melee()`,
+`Simulation`, `CombatActionProfiles`, `CombatActionCatalog`, `ReplayRecording`,
+`Attack`, `AttackInstance`, `AttackCatalog`, `CollisionWorld`,
+`CollisionTopologyCatalog`, `Hitbox`, `Hurtbox`, and `OffensiveProperties`.
+The profiles expose definition-only `Melee()`,
 `Projectile()`, and `AreaOfEffect()` examples for the shared action pipeline.
 Create a simulation with `CombatAPI.Simulation.new(world)` before capturing or
 restoring combat snapshots; this associates the simulation clock with the World.

@@ -15,6 +15,19 @@ return function()
 	local simulation: CombatAPITypes.Simulation = publicAPI.Simulation.new(world)
 	check(simulation:GetWorld() == world, "typed Simulation constructor associates with the World")
 	check(simulation:Update(0) == 0, "typed Simulation exposes its update method")
+	local topologyCatalog: CombatAPITypes.CollisionTopologyCatalog =
+		publicAPI.CollisionTopologyCatalog.new()
+	topologyCatalog:Register("types.contract.hitbox", 1, function(saved, owner)
+		return publicAPI.Hitbox.new({
+			Id = saved.Id,
+			Owner = owner,
+			Shape = saved.Shape,
+			Size = Vector3.new(1, 1, 1),
+			TopologyDefinitionId = "types.contract.hitbox",
+			TopologyDefinitionVersion = 1,
+		})
+	end)
+	topologyCatalog:Seal()
 	local context: CombatAPITypes.APIContext? = publicAPI.GetContext(world)
 	assert(context ~= nil, "typed GetContext returns the World-owned APIContext")
 	check(context:HasFeature("Events"), "typed APIContext exposes Events")
