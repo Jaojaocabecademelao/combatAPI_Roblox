@@ -88,7 +88,7 @@ concluído sem erros, mas sem registro do número de clientes.
 | B — Contrato estável | Implementação ampliada; validação incompleta | `PUBLIC_API.md` define SemVer/depreciação e fronteira público-interno; `CombatAPITypes` cobre facade, eventos, propriedades e plugins; `ResolverErrorMap` centraliza resultados do resolver. A análise `luau-lsp` permanece indisponível localmente, e os testes de mapeamento de erro precisam de validação no Studio. |
 | C — Infraestrutura | Runner/CI implementados; validação parcial | O usuário confirmou execuções anteriores da suíte e do smoke sem erros, sem logs/contagem atuais. Investigar a origem de módulos duplicados no place e avisos de asset; CI não executa testes de runtime. |
 
-A decisão D8 foi resolvida pelo usuário: opção (b), aprofundar capacidades antes de divulgar. A execução independente do consumidor da Etapa A continua pendente; o primeiro incremento de D foi implementado por solicitação do usuário, mas não será considerado validado até a execução Studio correspondente.
+A decisão D8 foi resolvida pelo usuário: opção (b), aprofundar capacidades antes de divulgar. A execução independente do consumidor da Etapa A continua pendente. D1 (eventos declarativos de ações) e D2 (diagnóstico de determinismo e inspeção de replay) já foram implementadas. A seção de colisão expressiva agora inclui colisão varrida translacional opt-in e filtros por grupo nomeado/máscara allowlist opcional, integrados a snapshots e factories de topologia; a validação de runtime no Studio permanece pendente.
 
 
 ## Continuação — contrato público (11 nov 2026)

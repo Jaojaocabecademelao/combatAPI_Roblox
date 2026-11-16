@@ -218,6 +218,8 @@ export type CollisionRegionOptions = {
 	Size: Vector3?,
 	Radius: number?,
 	Enabled: boolean?,
+	CollisionGroup: string?,
+	CollisionMask: { string }?,
 	TopologyDefinitionId: string?,
 	TopologyDefinitionVersion: string | number?,
 	IdGenerator: IdGenerator?,
@@ -233,6 +235,7 @@ export type HitboxOptions = CollisionRegionOptions & {
 	HitPolicy: string?,
 	HitScope: string?,
 	CanHit: ((any, any) -> boolean)?,
+	Swept: boolean?,
 }
 
 export type HurtboxOptions = CollisionRegionOptions & {
@@ -246,6 +249,7 @@ export type Hitbox = HitboxOptions & {
 	Position: Vector3,
 	Rotation: CFrame,
 	Enabled: boolean,
+	Swept: boolean,
 	Size: Vector3,
 	Radius: number?,
 	AttackInstance: AttackInstance?,
@@ -297,6 +301,9 @@ export type CollisionRegionSnapshotBase = {
 	HitScope: string?,
 	HasCanHitCallback: boolean,
 	AttackInstanceId: EntityId?,
+	Swept: boolean?,
+	CollisionGroup: string?,
+	CollisionMask: { string }?,
 }
 
 export type CollisionBoxSnapshot = CollisionRegionSnapshotBase & {

@@ -78,6 +78,161 @@ local rotatedBox = boxRegion("Hitbox", origin, position(4, 1, 1), CFrame.Angles(
 local rotatedOverlap = sphereRegion("Hurtbox", position(0, 0, -1), 0.5)
 assert(CollisionQuery.Intersects(rotatedBox, rotatedOverlap), "Box queries should honor rotation")
 
+local sweepFrom = position(-5, 0, 0)
+local sweepTo = position(5, 0, 0)
+local stationary = position(0, 0, 0)
+local sweptBox = boxRegion("Hitbox", sweepTo, position(1, 1, 1))
+local sweptBoxTarget = boxRegion("Hurtbox", stationary, position(1, 1, 1))
+assert(CollisionQuery.SweptIntersects(sweptBox, sweptBoxTarget, sweepFrom, stationary),
+	"Swept BoxBox should detect contact between separated endpoints")
+assert(not CollisionQuery.SweptIntersects(
+	boxRegion("Hitbox", position(5, 1.1, 0), position(1, 1, 1)),
+	sweptBoxTarget,
+	position(-5, 1.1, 0),
+	stationary
+), "Swept BoxBox should reject paths that remain separated")
+
+local sweptSphere = sphereRegion("Hitbox", sweepTo, 0.5)
+local sweptSphereTarget = sphereRegion("Hurtbox", stationary, 0.5)
+assert(CollisionQuery.SweptIntersects(sweptSphere, sweptSphereTarget, sweepFrom, stationary),
+	"Swept SphereSphere should detect contact between separated endpoints")
+assert(not CollisionQuery.SweptIntersects(
+	sphereRegion("Hitbox", position(5, 1.1, 0), 0.5),
+	sweptSphereTarget,
+	position(-5, 1.1, 0),
+	stationary
+), "Swept SphereSphere should reject paths that remain separated")
+
+local sweptBoxSphere = sphereRegion("Hurtbox", stationary, 0.5)
+assert(CollisionQuery.SweptIntersects(sweptBox, sweptBoxSphere, sweepFrom, stationary),
+	"Swept BoxSphere should detect contact between separated endpoints")
+assert(CollisionQuery.SweptIntersects(
+	sphereRegion("Hitbox", sweepTo, 0.5),
+	boxRegion("Hurtbox", stationary, position(1, 1, 1)),
+	sweepFrom,
+	stationary
+), "Swept SphereBox should support reversed shape order")
+assert(not CollisionQuery.SweptIntersects(
+	boxRegion("Hitbox", position(5, 1.1, 0), position(1, 1, 1)),
+	sweptBoxSphere,
+	position(-5, 1.1, 0),
+	stationary
+), "Swept BoxSphere should reject paths that remain separated")
+
+local sweptWorld = World.new()
+local sweptCollisionWorld = CollisionWorld.new(sweptWorld)
+local sweptIntegrationHitbox = Hitbox.new({
+	Shape = "Sphere",
+	Radius = 0.5,
+	Position = sweepFrom,
+	Swept = true,
+})
+local sweptIntegrationHurtbox = sphereRegion("Hurtbox", stationary, 0.5)
+sweptCollisionWorld:RegisterHitbox(sweptIntegrationHitbox)
+sweptCollisionWorld:RegisterHurtbox(sweptIntegrationHurtbox)
+sweptIntegrationHitbox.Position = sweepTo
+assert(not CollisionQuery.Intersects(sweptIntegrationHitbox, sweptIntegrationHurtbox),
+	"Sweep integration test should have separated endpoints")
+sweptCollisionWorld:Step(1 / 60)
+assert(#sweptCollisionWorld:GetResults() == 1,
+	"CollisionWorld should use the swept query for opt-in Hitboxes")
+assert(Hitbox.new({ Shape = "Sphere", Radius = 0.5 }).Swept == false,
+	"Swept collision should remain opt-in")
+sweptCollisionWorld:RemoveHitbox(sweptIntegrationHitbox)
+sweptCollisionWorld:RemoveHurtbox(sweptIntegrationHurtbox)
+local discreteHitbox = Hitbox.new({ Shape = "Sphere", Radius = 0.5, Position = sweepFrom })
+local discreteHurtbox = sphereRegion("Hurtbox", stationary, 0.5)
+sweptCollisionWorld:RegisterHitbox(discreteHitbox)
+sweptCollisionWorld:RegisterHurtbox(discreteHurtbox)
+discreteHitbox.Position = sweepTo
+sweptCollisionWorld:Step(1 / 60)
+assert(#sweptCollisionWorld:GetResults() == 0,
+	"Hitboxes without Swept should preserve endpoint-only collision behavior")
+sweptCollisionWorld:RemoveHitbox(discreteHitbox)
+sweptCollisionWorld:RemoveHurtbox(discreteHurtbox)
+local disabledSweptHitbox = Hitbox.new({
+	Shape = "Sphere",
+	Radius = 0.5,
+	Position = sweepFrom,
+	Enabled = false,
+	Swept = true,
+})
+local disabledSweepTarget = sphereRegion("Hurtbox", stationary, 0.5)
+sweptCollisionWorld:RegisterHitbox(disabledSweptHitbox)
+sweptCollisionWorld:RegisterHurtbox(disabledSweepTarget)
+sweptCollisionWorld:Step(1 / 60)
+disabledSweptHitbox.Position = sweepTo
+sweptCollisionWorld:Step(1 / 60)
+disabledSweptHitbox:SetEnabled(true)
+sweptCollisionWorld:Step(1 / 60)
+assert(#sweptCollisionWorld:GetResults() == 0,
+	"Disabled regions should advance their sweep origin without accumulating motion")
+
+local filteredHitbox = Hitbox.new({
+	Shape = "Sphere",
+	Radius = 1,
+	CollisionGroup = "Attack",
+	CollisionMask = { "Body" },
+})
+local allowedTarget = Hurtbox.new({
+	Shape = "Sphere",
+	Radius = 1,
+	CollisionGroup = "Body",
+	CollisionMask = { "Attack" },
+})
+sweptCollisionWorld:RegisterHitbox(filteredHitbox)
+sweptCollisionWorld:RegisterHurtbox(allowedTarget)
+sweptCollisionWorld:Step(1 / 60)
+assert(#sweptCollisionWorld:GetResults() == 1,
+	"Mutually allowed collision masks should preserve overlapping contacts")
+sweptCollisionWorld:RemoveHurtbox(allowedTarget)
+local deniedTarget = Hurtbox.new({
+	Shape = "Sphere",
+	Radius = 1,
+	CollisionGroup = "Body",
+	CollisionMask = { "Shield" },
+})
+sweptCollisionWorld:RegisterHurtbox(deniedTarget)
+sweptCollisionWorld:Step(1 / 60)
+assert(#sweptCollisionWorld:GetResults() == 0,
+	"A one-sided collision mask rejection should filter the contact")
+sweptCollisionWorld:RemoveHitbox(filteredHitbox)
+sweptCollisionWorld:RemoveHurtbox(deniedTarget)
+
+local unmaskedHitbox = Hitbox.new({
+	Shape = "Sphere",
+	Radius = 1,
+	CollisionGroup = "Attack",
+})
+local maskedTarget = Hurtbox.new({
+	Shape = "Sphere",
+	Radius = 1,
+	CollisionGroup = "Body",
+	CollisionMask = { "Attack" },
+})
+sweptCollisionWorld:RegisterHitbox(unmaskedHitbox)
+sweptCollisionWorld:RegisterHurtbox(maskedTarget)
+sweptCollisionWorld:Step(1 / 60)
+assert(#sweptCollisionWorld:GetResults() == 1,
+	"An absent collision mask should retain the accept-all default")
+local mutableMask = { "Shield", "Body" }
+local copiedMaskHitbox = Hitbox.new({
+	Shape = "Sphere",
+	Radius = 1,
+	CollisionMask = mutableMask,
+})
+mutableMask[1] = "Head"
+assert(copiedMaskHitbox.CollisionMask[1] == "Body"
+	and copiedMaskHitbox.CollisionMask[2] == "Shield"
+	and table.isfrozen(copiedMaskHitbox.CollisionMask),
+	"Collision masks should be copied, canonicalized, and immutable")
+assert(not pcall(Hitbox.new, {
+	Shape = "Sphere",
+	Radius = 1,
+	CollisionMask = { "Body", "Body" },
+}), "Duplicate collision mask groups should be rejected")
+sweptWorld:Destroy()
+
 -- CollisionWorld owns registration, contact state, and resolution; attached regions register automatically.
 local world = World.new()
 local collisionWorld = CollisionWorld.new(world)

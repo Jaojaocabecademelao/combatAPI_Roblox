@@ -29,6 +29,18 @@ return function()
 		DeterministicScheduler = { MaxEvents = 64 },
 	}
 	local simulation: CombatAPITypes.Simulation = publicAPI.Simulation.new(world, simulationOptions)
+	local sweptHitboxOptions: CombatAPITypes.HitboxOptions = {
+		Shape = "Sphere",
+		Radius = 0.5,
+		Swept = true,
+		CollisionGroup = "Attack",
+		CollisionMask = { "Body" },
+	}
+	local sweptHitbox: CombatAPITypes.Hitbox = publicAPI.Hitbox.new(sweptHitboxOptions)
+	local sweptMask = sweptHitbox.CollisionMask
+	check(sweptHitbox.Swept and sweptHitbox.CollisionGroup == "Attack"
+		and sweptMask ~= nil and sweptMask[1] == "Body",
+		"typed Hitbox exposes swept collision and named collision filtering")
 	check(simulation:GetWorld() == world, "typed Simulation constructor associates with the World")
 	local determinismGuard: CombatAPITypes.DeterminismGuard = simulation:GetDeterminismGuard()
 	simulation:SetExecutionContext("Replay")
@@ -94,6 +106,9 @@ return function()
 			Owner = owner,
 			Shape = saved.Shape,
 			Size = Vector3.new(1, 1, 1),
+			Swept = saved.Swept == true,
+			CollisionGroup = saved.CollisionGroup,
+			CollisionMask = saved.CollisionMask,
 			TopologyDefinitionId = "types.contract.hitbox",
 			TopologyDefinitionVersion = 1,
 		})

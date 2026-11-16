@@ -76,6 +76,12 @@ pacote. As versões de schema/manifest são independentes da versão SemVer.
   construtor de propriedades ofensivas.
 - Documentação de importação dos tipos e exemplo tipado de `AttackOptions` e
   `AttackInstanceOptions`.
+- Colisão varrida translacional opt-in por Hitbox (`Swept = true`) para Box/Box,
+  Box/Sphere e Sphere/Sphere, incluindo o movimento relativo das regiões e
+  rebase das origens após restore.
+- Filtros de colisão por grupo nomeado e máscaras allowlist opcionais em Hitbox
+  e Hurtbox; máscara ausente preserva a compatibilidade aceitando todos os
+  grupos, e snapshots/factories preservam filtros configurados.
 
 ### Limites
 
@@ -88,6 +94,10 @@ pacote. As versões de schema/manifest são independentes da versão SemVer.
   esta revisão.
 - Os handlers de eventos de ações continuam sendo código do jogo e precisam
   obedecer às regras de determinismo e rollback documentadas.
+- O incremento de colisão varrida tem testes adicionados, mas ainda requer
+  execução da suíte no Roblox Studio; rotação angular não é interpolada.
+- Grupos e máscaras também têm cobertura adicionada, ainda pendente de execução
+  da suíte no Roblox Studio.
 
 
 ### Corrigido

@@ -297,6 +297,58 @@ obrigar todos os jogos a adotar as mesmas regras de personagem ou de cenário.
 - **Escala espacial:** permitir que o sistema limite candidatos próximos antes
   de testar formas, mantendo a semântica dos resultados definida.
 
+### Primeiro incremento: colisão varrida translacional
+
+O primeiro incremento da colisão varrida é opt-in por Hitbox (`Swept = true`),
+para preservar o comportamento existente das regiões que não ativarem a opção.
+Em cada passo, testa a trajetória relativa entre a posição anterior e a atual
+da Hitbox e da Hurtbox. A colisão acontece se as formas se sobrepuserem em
+qualquer instante do intervalo fechado do frame, mesmo que não haja overlap no
+fim do passo.
+
+O teste é contínuo e exato para Box/Box, Box/Sphere e Sphere/Sphere quando cada
+forma mantém orientação fixa durante o intervalo. Para o primeiro incremento,
+a orientação atual de cada região é usada durante todo o sweep; movimento
+angular não é interpolado nem garante detecção. O `Swept` da Hitbox é
+configuração da região e entra no snapshot apenas quando verdadeiro. A origem
+das trajetórias não precisa ser serializada separadamente: em um frame
+restaurado ela é rebasada para a posição restaurada, sem criar um segmento entre
+o futuro descartado e o replay.
+
+```lua
+local hitbox = CombatAPI.Hitbox.new({
+    Shape = "Sphere",
+    Radius = 0.5,
+    Swept = true,
+})
+collisionWorld:RegisterHitbox(hitbox)
+
+-- A cada World:Step, ambas as regiões usam o movimento relativo desde o
+-- último passo concluído. A colisão pode ocorrer mesmo sem overlap final.
+hitbox.Position = nextPosition
+world:Step(fixedDeltaTime)
+```
+
+Uma região recém-registrada começa sua trajetória na posição do registro.
+Regiões desabilitadas continuam atualizando a origem por passo, portanto não
+acumulam deslocamento enquanto estão inativas. Snapshots com `Swept = true`
+exigem que a factory versionada recrie a Hitbox com a mesma opção.
+
+### Incremento: grupos e máscaras de colisão
+
+Cada Hitbox ou Hurtbox pode declarar um `CollisionGroup` por nome. O grupo
+padrão é `"Default"` e uma `CollisionMask` ausente permite todos os grupos,
+preservando os contatos existentes. Quando a máscara está presente, ela é uma
+lista allowlist de nomes: cada máscara definida no par precisa permitir o grupo
+da outra região. Uma lista vazia bloqueia todos os contatos. A API não exige
+registro central dos nomes de grupo.
+
+As máscaras são listas densas de nomes únicos, copiadas, ordenadas e congeladas
+ao construir a região. Snapshots registram apenas grupos não padrão e máscaras
+definidas; factories de topologia devem restaurar esses valores. A filtragem
+acontece antes da consulta geométrica e não altera as regras de propriedade,
+elegibilidade, histórico de hits ou resolução.
+
 ### Declarar o domínio de cada consulta
 
 Toda consulta deveria informar de onde vem a geometria usada:

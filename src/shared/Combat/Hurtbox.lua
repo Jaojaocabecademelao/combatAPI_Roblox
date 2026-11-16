@@ -1,4 +1,5 @@
 local Component = require(script.Parent.Parent.Core.Component)
+local CollisionFilter = require(script.Parent.CollisionFilter)
 
 local Hurtbox = {}
 Hurtbox.__index = Hurtbox
@@ -52,6 +53,11 @@ function Hurtbox.new(options)
 	self.Rotation = rotation
 	self.Owner = options.Owner
 	self.Enabled = options.Enabled ~= false
+	local collisionGroup, collisionMask, filterError = CollisionFilter.Normalize(
+		options.CollisionGroup, options.CollisionMask)
+	assert(collisionGroup ~= nil, filterError)
+	self.CollisionGroup = collisionGroup
+	self.CollisionMask = collisionMask
 
 	if shape == "Box" then
 		local size = options.Size

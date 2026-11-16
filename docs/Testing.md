@@ -48,7 +48,12 @@ de teste com dois clientes.
 - `CombatAttackCatalogRollbackTest.lua`: manifest v2, comparação canônica
   e rejeição de manifest v1 quando definições usam `CustomData`.
 - `CombatCollisionRollbackTest.lua`: captura, validação e restauração
-  in-place de overrides distintos em duas instâncias da mesma definição.
+  in-place de overrides distintos em duas instâncias da mesma definição,
+  configuração de colisão varrida e rebase após rollback.
+- `CombatTest.lua`: cobertura das consultas geométricas Box/Box, Box/Sphere e
+  Sphere/Sphere varridas, incluindo caminhos sem contato e integração opt-in no
+  `CollisionWorld`; verifica também allowlists mútuas, rejeição de máscara e
+  compatibilidade do padrão sem máscara.
 - `CombatTopologyRebuildRollbackTest.lua`: reconstrução de instâncias e
   rejeição de overrides inválidos no caminho de rebuild da topologia.
 - `CombatStateSchemaTest.lua`: migração de schema 2 para 3 e rejeição de

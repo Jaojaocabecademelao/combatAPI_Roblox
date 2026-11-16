@@ -1,4 +1,5 @@
 local CollisionQuery = require(script.Parent.CollisionQuery)
+local CollisionFilter = require(script.Parent.CollisionFilter)
 local HitResolver = require(script.Parent.HitResolver)
 local HitProcessor = require(script.Parent.HitProcessor)
 local DamageResolver = require(script.Parent.DamageResolver)
@@ -126,11 +127,19 @@ local function validateCustomDataOverrides(value)
 	return pcall(Serializer.CloneSerializable, value, CUSTOM_DATA_LIMITS)
 end
 
+local function rebaseSweepOrigins(self)
+	local positions = {}
+	for _, region in ipairs(self:GetHitboxes()) do positions[region] = region.Position end
+	for _, region in ipairs(self:GetHurtboxes()) do positions[region] = region.Position end
+	self.PreviousPositions = positions
+end
+
 function CollisionWorld.new(world)
 	local self = setmetatable({}, CollisionWorld)
 	self.World = nil
 	self.Hitboxes = {}
 	self.Hurtboxes = {}
+	self.PreviousPositions = {}
 	self.ActivePairs = {}
 	self.Results = {}
 	self.HitEvents = {}
@@ -186,6 +195,9 @@ function CollisionWorld:RegisterHitbox(hitbox)
 	local existing = self.Hitboxes[hitbox.Id]
 	assert(existing == nil or existing == hitbox, "Hitbox ID is already registered")
 	self.Hitboxes[hitbox.Id] = hitbox
+	if self.PreviousPositions[hitbox] == nil then
+		self.PreviousPositions[hitbox] = hitbox.Position
+	end
 	return hitbox
 end
 
@@ -198,6 +210,9 @@ function CollisionWorld:RegisterHurtbox(hurtbox)
 	local existing = self.Hurtboxes[hurtbox.Id]
 	assert(existing == nil or existing == hurtbox, "Hurtbox ID is already registered")
 	self.Hurtboxes[hurtbox.Id] = hurtbox
+	if self.PreviousPositions[hurtbox] == nil then
+		self.PreviousPositions[hurtbox] = hurtbox.Position
+	end
 	return hurtbox
 end
 
@@ -209,6 +224,7 @@ function CollisionWorld:RemoveHitbox(hitboxOrId)
 	end
 
 	self.Hitboxes[id] = nil
+	self.PreviousPositions[hitbox] = nil
 	self.ActivePairs[hitbox] = nil
 	self.HitProcessor:RemoveRegion(hitbox)
 	pruneResults(self, hitbox)
@@ -223,6 +239,7 @@ function CollisionWorld:RemoveHurtbox(hurtboxOrId)
 	end
 
 	self.Hurtboxes[id] = nil
+	self.PreviousPositions[hurtbox] = nil
 	self.HitProcessor:RemoveRegion(hurtbox)
 	for _, hurtboxes in pairs(self.ActivePairs) do
 		hurtboxes[hurtbox] = nil
@@ -322,27 +339,36 @@ function CollisionWorld:Step(deltaTime, frame, time)
 			for _, hurtbox in ipairs(hurtboxes) do
 				local distinctOwners = attackOwner == nil or hurtbox.Owner == nil
 					or attackOwner ~= hurtbox.Owner
-				if hurtbox:IsEnabled() and isOwnerActive(hurtbox.Owner)
-					and distinctOwners and CollisionQuery.Intersects(hitbox, hurtbox)
-				then
-					local previousHurtboxes = self.ActivePairs[hitbox]
-					local isContinuous = previousHurtboxes ~= nil and previousHurtboxes[hurtbox] == true
-					local currentHurtboxes = nextActivePairs[hitbox]
-					if currentHurtboxes == nil then
-						currentHurtboxes = {}
-						nextActivePairs[hitbox] = currentHurtboxes
+				if hurtbox:IsEnabled() and isOwnerActive(hurtbox.Owner) and distinctOwners
+					and CollisionFilter.AllowsPair(hitbox, hurtbox) then
+					local intersects
+					if hitbox.Swept == true then
+						local hitboxStart = self.PreviousPositions[hitbox] or hitbox.Position
+						local hurtboxStart = self.PreviousPositions[hurtbox] or hurtbox.Position
+						intersects = CollisionQuery.SweptIntersects(hitbox, hurtbox, hitboxStart, hurtboxStart)
+					else
+						intersects = CollisionQuery.Intersects(hitbox, hurtbox)
 					end
-					currentHurtboxes[hurtbox] = true
+					if intersects then
+						local previousHurtboxes = self.ActivePairs[hitbox]
+						local isContinuous = previousHurtboxes ~= nil and previousHurtboxes[hurtbox] == true
+						local currentHurtboxes = nextActivePairs[hitbox]
+						if currentHurtboxes == nil then
+							currentHurtboxes = {}
+							nextActivePairs[hitbox] = currentHurtboxes
+						end
+						currentHurtboxes[hurtbox] = true
 
-					table.insert(results, {
-						Hitbox = hitbox,
-						Hurtbox = hurtbox,
-						Attacker = attackOwner,
-						Target = hurtbox.Owner,
-						ContactType = isContinuous and "Continuous" or "FirstContact",
-						IsFirstContact = not isContinuous,
-						IsContinuous = isContinuous,
-					})
+						table.insert(results, {
+							Hitbox = hitbox,
+							Hurtbox = hurtbox,
+							Attacker = attackOwner,
+							Target = hurtbox.Owner,
+							ContactType = isContinuous and "Continuous" or "FirstContact",
+							IsFirstContact = not isContinuous,
+							IsContinuous = isContinuous,
+						})
+					end
 				end
 			end
 		end
@@ -352,6 +378,7 @@ function CollisionWorld:Step(deltaTime, frame, time)
 	self.Results = results
 	local candidates = self.HitResolver:Resolve(results)
 	self.HitEvents = self.HitProcessor:Process(candidates, frame, time)
+	rebaseSweepOrigins(self)
 	return self:GetResults()
 end
 
@@ -383,6 +410,13 @@ function CollisionWorld:CaptureRollbackState()
 			HasCanHitCallback = region.CanHit ~= nil,
 			AttackInstanceId = region.AttackInstance and region.AttackInstance.Id or nil,
 		}
+		if region.CombatRegionType == "Hitbox" and region.Swept then data.Swept = true end
+		if region.CollisionGroup ~= CollisionFilter.DefaultGroup then
+			data.CollisionGroup = region.CollisionGroup
+		end
+		if region.CollisionMask ~= nil then
+			data.CollisionMask = CollisionFilter.CloneMask(region.CollisionMask)
+		end
 		if region.Shape == "Box" then data.Size = vectorState(region.Size)
 		else data.Radius = region.Radius end
 		return data
@@ -475,6 +509,26 @@ function CollisionWorld:ValidateRollbackState(state)
 			seen[saved.Id] = true
 			local region = byId[saved.Id]
 			if not region then return false, label .. " missing live ID " .. tostring(saved.Id) end
+			local savedGroup, savedMask, filterError = CollisionFilter.Normalize(
+				saved.CollisionGroup, saved.CollisionMask)
+			if savedGroup == nil then
+				return false, "Invalid collision filter for " .. label .. " " .. tostring(saved.Id)
+					.. ": " .. tostring(filterError)
+			end
+			if region.CollisionGroup ~= savedGroup
+				or not CollisionFilter.MasksEqual(region.CollisionMask, savedMask) then
+				return false, label .. " collision filter mismatch for ID " .. tostring(saved.Id)
+			end
+			if label == "Hitbox" then
+				if saved.Swept ~= nil and type(saved.Swept) ~= "boolean" then
+					return false, "Invalid Swept flag for Hitbox " .. tostring(saved.Id)
+				end
+				if region.Swept ~= (saved.Swept == true) then
+					return false, "Hitbox sweep configuration mismatch for ID " .. tostring(saved.Id)
+				end
+			elseif saved.Swept ~= nil then
+				return false, "Swept flag is only valid for Hitboxes"
+			end
 			local liveOwnerId = region.Owner and region.Owner.Id or nil
 			if liveOwnerId ~= saved.OwnerEntityId then return false, label .. " owner mismatch for ID " .. tostring(saved.Id) end
 			if saved.OwnerEntityId ~= nil and (not self.World or not self.World:GetEntity(saved.OwnerEntityId)) then
@@ -629,6 +683,7 @@ function CollisionWorld:PrepareRollbackRestore(state)
 		self.ActivePairs = pairsStaged
 		self.Frame = state.Frame
 		self.LastStepDeltaTime = state.LastStepDeltaTime
+		rebaseSweepOrigins(self)
 		-- Contact outputs are deliberately cleared: restoring them as new notifications could
 		-- replay external effects. Consumers must use frame-keyed event IDs for deduplication.
 		self.Results = {}
@@ -684,6 +739,7 @@ function CollisionWorld:PrepareTopologyRebuild(state, entitiesByIdOverride)
    self.Frame = state.Frame
    self.LastStepDeltaTime = state.LastStepDeltaTime
    self.Results, self.HitEvents = {}, {}
+   rebaseSweepOrigins(self)
   end
  end
  local topologyOk, topologyError = self.TopologyCatalog:ValidateManifest(state.TopologyCatalogManifest)
@@ -711,6 +767,16 @@ function CollisionWorld:PrepareTopologyRebuild(state, entitiesByIdOverride)
    for _, value in ipairs(saved.Position) do if not isFiniteNumber(value) then return false, "Non-finite region position" end end
    for _, value in ipairs(saved.Rotation) do if not isFiniteNumber(value) then return false, "Non-finite region rotation" end end
    if type(saved.Enabled) ~= "boolean" then return false, "Invalid region Enabled flag" end
+   local savedGroup, savedMask, filterError = CollisionFilter.Normalize(
+    saved.CollisionGroup, saved.CollisionMask)
+   if savedGroup == nil then
+    return false, "Invalid collision filter for " .. expectedType .. ": " .. tostring(filterError)
+   end
+   if expectedType == "Hitbox" then
+    if saved.Swept ~= nil and type(saved.Swept) ~= "boolean" then return false, "Invalid Hitbox Swept flag" end
+   elseif saved.Swept ~= nil then
+    return false, "Swept flag is only valid for Hitboxes"
+   end
    if saved.OwnerEntityId ~= nil and not validStableId(saved.OwnerEntityId) then return false, "Invalid region owner ID" end
    if saved.Shape == "Box" then
     if type(saved.Size) ~= "table" or #saved.Size ~= 3 then return false, "Invalid box size" end
@@ -748,6 +814,7 @@ function CollisionWorld:PrepareTopologyRebuild(state, entitiesByIdOverride)
    local region, factoryError = self.TopologyCatalog:CreateRegion(saved, owner)
    if not region then return false, factoryError end
    if region.Id ~= saved.Id then return false, "Factory changed stable region ID" end
+   local savedGroup, savedMask = CollisionFilter.Normalize(saved.CollisionGroup, saved.CollisionMask)
    if expectedType == "Hitbox" then
     if region.Shape == "Box" then region.Size = stateVector(saved.Size) else region.Radius = saved.Radius; region.Size = Vector3.new(saved.Radius * 2, saved.Radius * 2, saved.Radius * 2) end
    else
@@ -761,6 +828,13 @@ function CollisionWorld:PrepareTopologyRebuild(state, entitiesByIdOverride)
     or region.HitPolicy ~= saved.HitPolicy or region.HitScope ~= saved.HitScope
     or (region.CanHit ~= nil) ~= (saved.HasCanHitCallback == true) then
     return false, "Topology factory behavior mismatch for region " .. tostring(saved.Id)
+   end
+   if expectedType == "Hitbox" and region.Swept ~= (saved.Swept == true) then
+    return false, "Topology factory sweep configuration mismatch for region " .. tostring(saved.Id)
+   end
+   if region.CollisionGroup ~= savedGroup
+    or not CollisionFilter.MasksEqual(region.CollisionMask, savedMask) then
+    return false, "Topology factory collision filter mismatch for region " .. tostring(saved.Id)
    end
    -- Damage is validated as serialized scalar/table data by equality where possible.
    if type(region.Damage) ~= type(saved.Damage) then return false, "Topology factory damage type mismatch" end
@@ -840,6 +914,7 @@ function CollisionWorld:PrepareTopologyRebuild(state, entitiesByIdOverride)
   self.Frame = state.Frame
   self.LastStepDeltaTime = state.LastStepDeltaTime
   self.Results, self.HitEvents = {}, {}
+  rebaseSweepOrigins(self)
   for _, instance in ipairs(stagedAttacks) do instance._HitHistory = self.HitProcessor.HitHistory end
  end
 end

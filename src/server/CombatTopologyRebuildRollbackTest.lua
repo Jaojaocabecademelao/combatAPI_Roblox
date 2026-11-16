@@ -25,18 +25,23 @@ collision:SetAttackCatalog(attackCatalog)
 local topology = TopologyCatalog.new()
 topology:Register("test.hitbox", 1, function(saved, owner)
  return Hitbox.new({ Id = saved.Id, Owner = owner, Shape = saved.Shape, Size = Vector3.new(2,2,2),
-  Position = Vector3.new(0,0,0), Enabled = saved.Enabled, TopologyDefinitionId = "test.hitbox", TopologyDefinitionVersion = 1 })
+  Position = Vector3.new(0,0,0), Enabled = saved.Enabled, Swept = saved.Swept == true,
+  CollisionGroup = saved.CollisionGroup, CollisionMask = saved.CollisionMask,
+  TopologyDefinitionId = "test.hitbox", TopologyDefinitionVersion = 1 })
 end)
 topology:Register("test.hurtbox", 1, function(saved, owner)
  return Hurtbox.new({ Id = saved.Id, Owner = owner, Shape = saved.Shape, Size = Vector3.new(2,2,2),
-  Position = Vector3.new(0,0,0), Enabled = saved.Enabled, TopologyDefinitionId = "test.hurtbox", TopologyDefinitionVersion = 1 })
+  Position = Vector3.new(0,0,0), Enabled = saved.Enabled, CollisionGroup = saved.CollisionGroup,
+  CollisionMask = saved.CollisionMask, TopologyDefinitionId = "test.hurtbox", TopologyDefinitionVersion = 1 })
 end)
 topology:Seal()
 collision:SetTopologyCatalog(topology)
 
 local hitbox = Hitbox.new({ Id = 5001, Owner = attacker, Shape = "Box", Size = Vector3.new(2,2,2),
+ Swept = true, CollisionGroup = "Attack", CollisionMask = { "Body" },
  TopologyDefinitionId = "test.hitbox", TopologyDefinitionVersion = 1 })
 local hurtbox = Hurtbox.new({ Id = 5002, Owner = target, Shape = "Box", Size = Vector3.new(2,2,2),
+ CollisionGroup = "Body", CollisionMask = { "Attack" },
  TopologyDefinitionId = "test.hurtbox", TopologyDefinitionVersion = 1 })
 collision:RegisterHitbox(hitbox); collision:RegisterHurtbox(hurtbox)
 local instance = AttackInstance.new(definition, attacker, world.IdGenerator, {
@@ -46,6 +51,10 @@ instance:Activate(); instance:AddHitbox(hitbox)
 collision:Step(1/60, 1, 1/60)
 local snapshot = collision:CaptureRollbackState()
 assert(snapshot.Hitboxes[1].TopologyDefinitionId == "test.hitbox", "Hitbox topology definition was not captured")
+assert(snapshot.Hitboxes[1].Swept == true, "Swept configuration was not captured for topology rebuild")
+assert(snapshot.Hitboxes[1].CollisionGroup == "Attack"
+ and snapshot.Hitboxes[1].CollisionMask[1] == "Body",
+ "Collision filter was not captured for topology rebuild")
 assert(snapshot.AttackInstances[1].CustomDataOverrides.Radius == 7,
 	"Topology snapshot must capture the attack instance override")
 
@@ -57,6 +66,10 @@ assert(type(commit) == "function", "Topology rebuild preparation failed: " .. to
 assert(next(collision.Hitboxes) == nil and next(collision.Hurtboxes) == nil, "Preparation mutated live topology")
 commit()
 assert(collision.Hitboxes[5001] and collision.Hurtboxes[5002], "Missing regions were not reconstructed")
+assert(collision.Hitboxes[5001].Swept, "Topology factory did not restore swept configuration")
+assert(collision.Hitboxes[5001].CollisionGroup == "Attack"
+ and collision.Hurtboxes[5002].CollisionGroup == "Body",
+ "Topology factory did not restore collision filter configuration")
 local restored = collision.Hitboxes[5001].AttackInstance
 assert(restored and restored.Id == snapshot.AttackInstances[1].Id and restored.State == "Active", "AttackInstance was not reconstructed")
 assert(restored.CustomDataOverrides.Radius == 7

@@ -42,6 +42,9 @@ topologyCatalog:Register("game.hitbox", 1, function(saved, owner)
         Shape = "Box",
         Size = Vector3.new(saved.Size[1], saved.Size[2], saved.Size[3]),
         Position = Vector3.new(0, 0, 0),
+        Swept = saved.Swept == true,
+        CollisionGroup = saved.CollisionGroup,
+        CollisionMask = saved.CollisionMask,
         Enabled = saved.Enabled,
         Priority = saved.PriorityOverride,
         ClashGroup = saved.ClashGroup,
@@ -277,6 +280,21 @@ regions deterministically. `CollisionWorld:GetHitboxes()` and
 `Hitbox.new()` and `Hurtbox.new()` may omit `Id`;
 `CollisionWorld:RegisterHitbox()` and `RegisterHurtbox()` assign one and return
 the registered region.
+
+Set `Swept = true` on a Hitbox to detect translational contacts between
+simulation steps; it is disabled by default. Box/Box, Box/Sphere, and
+Sphere/Sphere sweeps use the current orientations for the whole interval and
+do not interpolate rotation. The option is captured only when true, and a
+topology factory must restore that setting from `saved.Swept`.
+
+Collision regions also accept `CollisionGroup` (a non-empty string, default
+`"Default"`) and `CollisionMask` (an optional array of group names). An absent
+mask allows every group; a present mask only allows its listed groups, and
+every present mask on the pair must allow the other region's group. An empty
+mask therefore blocks all contacts. Masks are copied, sorted, and frozen when
+the region is created. Snapshots omit the default group and absent masks, and
+factories must reproduce configured values from `saved.CollisionGroup` and
+`saved.CollisionMask`.
 
 Plugin callbacks receive `PluginContext`, which exposes `GetCapability` and
 `RegisterCapability` for extension-owned capabilities keyed by identifier.

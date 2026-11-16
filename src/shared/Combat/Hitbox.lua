@@ -1,5 +1,6 @@
 local Component = require(script.Parent.Parent.Core.Component)
 local HitPolicy = require(script.Parent.HitPolicy)
+local CollisionFilter = require(script.Parent.CollisionFilter)
 
 local Hitbox = {}
 Hitbox.__index = Hitbox
@@ -53,6 +54,14 @@ function Hitbox.new(options)
 	self.Rotation = rotation
 	self.Owner = options.Owner
 	self.Enabled = options.Enabled ~= false
+	local collisionGroup, collisionMask, filterError = CollisionFilter.Normalize(
+		options.CollisionGroup, options.CollisionMask)
+	assert(collisionGroup ~= nil, filterError)
+	self.CollisionGroup = collisionGroup
+	self.CollisionMask = collisionMask
+	assert(options.Swept == nil or type(options.Swept) == "boolean",
+		"Hitbox Swept must be a boolean or nil")
+	self.Swept = options.Swept == true
 	self.AttackId = options.AttackId
 	self.PriorityOverride = options.Priority
 	if self.PriorityOverride ~= nil then
