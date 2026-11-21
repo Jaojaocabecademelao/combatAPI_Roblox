@@ -358,6 +358,42 @@ export type CollisionWorld = {
 	RemoveHurtbox: (self: CollisionWorld, hurtbox: Hurtbox | number) -> boolean,
 	GetHitboxes: (self: CollisionWorld) -> { RegisteredHitbox },
 	GetHurtboxes: (self: CollisionWorld) -> { RegisteredHurtbox },
+	GetMetrics: (self: CollisionWorld) -> {
+		Steps: number,
+		Frame: number,
+		Hitboxes: number,
+		Hurtboxes: number,
+		CandidatePairs: number,
+		FilteredPairs: number,
+		PairsTested: number,
+		Contacts: number,
+		FirstContacts: number,
+		ContinuousContacts: number,
+		CumulativeCandidatePairs: number,
+		CumulativeFilteredPairs: number,
+		CumulativePairsTested: number,
+		CumulativeContacts: number,
+		CumulativeFirstContacts: number,
+		CumulativeContinuousContacts: number,
+	},
+	ResetMetrics: (self: CollisionWorld) -> {
+		Steps: number,
+		Frame: number,
+		Hitboxes: number,
+		Hurtboxes: number,
+		CandidatePairs: number,
+		FilteredPairs: number,
+		PairsTested: number,
+		Contacts: number,
+		FirstContacts: number,
+		ContinuousContacts: number,
+		CumulativeCandidatePairs: number,
+		CumulativeFilteredPairs: number,
+		CumulativePairsTested: number,
+		CumulativeContacts: number,
+		CumulativeFirstContacts: number,
+		CumulativeContinuousContacts: number,
+	},
 }
 
 export type EventFilterOptions = {
@@ -847,6 +883,140 @@ export type CombatActionDefinitionModule = {
 
 export type CollisionTopologyCatalogModule = CollisionTopologyCatalogConstructor
 
+export type Projectile = {
+	Id: EntityId?,
+	OwnerEntityId: EntityId?,
+	Position: any,
+	Velocity: any,
+	Acceleration: any,
+	MaxSpeed: number,
+	Drag: number,
+	LifetimeFrames: number,
+	ElapsedFrames: number,
+	ContactPolicy: string,
+	Alive: boolean,
+	Step: (self: Projectile, deltaFrames: number?) -> Projectile,
+	ResolveContact: (self: Projectile, contact: { [string]: any }?) -> string,
+	Capture: (self: Projectile) -> { [string]: any },
+	Restore: (self: Projectile, state: { [string]: any }) -> Projectile,
+}
+
+export type ProjectileModule = {
+	Version: number,
+	ContactPolicy: { [string]: string },
+	new: (options: { [string]: any }?) -> Projectile,
+}
+
+export type SceneQuery = {
+	GetJournal: (self: SceneQuery) -> any,
+	Resolve: (self: SceneQuery, frame: number, queryId: string, adapterId: string, adapterVersion: string | number, request: { [string]: any }, query: (() -> { [string]: any })?) -> ({ [string]: any }?, string?),
+	GetQuery: (self: SceneQuery, queryId: string) -> { [string]: any }?,
+	Capture: (self: SceneQuery) -> { [string]: any },
+}
+
+export type SceneQueryModule = {
+	MissingPolicy: { [string]: string },
+	new: (world: World, options: { [string]: any }?) -> SceneQuery,
+}
+
+export type PresentationEffect = {
+	Id: string,
+	Kind: string,
+	Payload: { [string]: any },
+	State: string,
+	Order: number,
+}
+
+export type Presentation = {
+	Create: (self: Presentation, effectId: string, kind: string, payload: { [string]: any }?) -> string,
+	Confirm: (self: Presentation, effectId: string) -> (boolean, string?) ,
+	Cancel: (self: Presentation, effectId: string) -> (boolean, string?) ,
+	Replace: (self: Presentation, effectId: string, replacementKind: string, replacementPayload: { [string]: any }?) -> (boolean, string?),
+	Get: (self: Presentation, effectId: string) -> PresentationEffect?,
+	List: (self: Presentation, state: string?) -> { PresentationEffect },
+	ClearFinal: (self: Presentation) -> (),
+	InterpolatePosition: (self: Presentation, fromPosition: any, toPosition: any, alpha: number) -> any,
+	InterpolateCFrame: (self: Presentation, fromCFrame: any, toCFrame: any, alpha: number) -> any,
+}
+
+export type PresentationModule = {
+	State: { [string]: string },
+	new: () -> Presentation,
+}
+
+export type RestoreReadiness = {
+	RegisterParticipant: (self: RestoreReadiness, key: string, participant: { [string]: any }) -> RestoreReadiness,
+	AddExternalDependency: (self: RestoreReadiness, queryId: string, adapterId: string, adapterVersion: string | number) -> RestoreReadiness,
+	Report: (self: RestoreReadiness, context: { [string]: any }?) -> { [string]: any },
+}
+
+export type RestoreReadinessModule = {
+	Version: number,
+	new: () -> RestoreReadiness,
+}
+
+export type PerformanceBudget = {
+	Check: (self: PerformanceBudget, metrics: { [string]: number }) -> { [string]: any },
+}
+
+export type PerformanceBudgetModule = {
+	new: (limits: { [string]: number }?) -> PerformanceBudget,
+}
+
+export type ActionTimeline = {
+	Id: EntityId,
+	DurationModel: string,
+	Entries: { [string]: any },
+	GetFrame: (self: ActionTimeline, frame: number) -> { [string]: any }?,
+}
+
+export type ActionTimelineModule = {
+	new: (definition: CombatActionDefinition) -> ActionTimeline,
+}
+
+export type CombatSession = {
+	RegisterPeer: (self: CombatSession, peerId: string | number) -> boolean,
+	DisconnectPeer: (self: CombatSession, peerId: string | number) -> boolean,
+	IsPeerConnected: (self: CombatSession, peerId: string | number) -> boolean,
+	ProposeInput: (self: CombatSession, peerId: string | number, entityId: EntityId, frame: number, sequence: number?, input: { [string]: any }?) -> ({ [string]: any }?, string?),
+	AcceptInput: (self: CombatSession, peerId: string | number, entityId: EntityId, frame: number) -> (boolean, string?) ,
+	RejectInput: (self: CombatSession, peerId: string | number, entityId: EntityId, frame: number, reason: string?) -> (boolean, string?) ,
+	ConfirmFrame: (self: CombatSession, frame: number) -> (boolean, string?) ,
+	Reconcile: (self: CombatSession, frame: number, hasDivergence: boolean, details: { [string]: any }?) -> boolean,
+	RequestRollback: (self: CombatSession, frame: number, reason: string?) -> (any?, string?),
+	GetStatus: (self: CombatSession) -> { [string]: any },
+	Capture: (self: CombatSession) -> { [string]: any },
+	Restore: (self: CombatSession, snapshot: { [string]: any }) -> CombatSession,
+}
+
+export type CombatSessionModule = {
+	Version: number,
+	State: { [string]: string },
+	new: (world: World, options: { [string]: any }?) -> CombatSession,
+}
+
+export type AdapterConformanceReport = {
+	Version: number,
+	Id: string,
+	AdapterVersion: string | number,
+	Authoritative: boolean,
+	Contexts: { string },
+	Passed: boolean,
+	Errors: { string },
+}
+
+export type AdapterConformance = {
+	Register: (self: AdapterConformance, id: string, options: { [string]: any }?) -> { [string]: any },
+	Check: (self: AdapterConformance, id: string) -> (AdapterConformanceReport?, string?),
+	Report: (self: AdapterConformance) -> { [string]: any },
+}
+
+export type AdapterConformanceModule = {
+	Version: number,
+	Context: { [string]: string },
+	new: () -> AdapterConformance,
+}
+
 export type CombatAPI = {
 	Name: string,
 	Version: number,
@@ -886,6 +1056,14 @@ export type CombatAPI = {
 	RobloxRemoteEventAdapter: { [string]: any },
 	CollisionTopologyCatalog: CollisionTopologyCatalogModule,
 	OffensiveProperties: OffensivePropertiesModule,
+	Projectile: ProjectileModule,
+	SceneQuery: SceneQueryModule,
+	Presentation: PresentationModule,
+	RestoreReadiness: RestoreReadinessModule,
+	PerformanceBudget: PerformanceBudgetModule,
+	ActionTimeline: ActionTimelineModule,
+	CombatSession: CombatSessionModule,
+	AdapterConformance: AdapterConformanceModule,
 }
 
 export type CustomDataConsumerAPI = CombatAPI

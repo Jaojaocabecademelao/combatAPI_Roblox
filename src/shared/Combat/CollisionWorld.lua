@@ -156,6 +156,24 @@ function CollisionWorld.new(world)
 	self.TopologyCatalog = nil
 	self.LastStepDeltaTime = nil
 	self.Frame = 0
+	self.Metrics = {
+		Steps = 0,
+		CumulativeCandidatePairs = 0,
+		CumulativeFilteredPairs = 0,
+		CumulativePairsTested = 0,
+		CumulativeContacts = 0,
+		CumulativeFirstContacts = 0,
+		CumulativeContinuousContacts = 0,
+		Hitboxes = 0,
+		Hurtboxes = 0,
+		CandidatePairs = 0,
+		FilteredPairs = 0,
+		PairsTested = 0,
+		Contacts = 0,
+		FirstContacts = 0,
+		ContinuousContacts = 0,
+		Frame = 0,
+	}
 
 	if world then
 		assert(type(world.SetCollisionWorld) == "function",
@@ -272,6 +290,47 @@ function CollisionWorld:GetHitEvents()
 	return hitEvents
 end
 
+function CollisionWorld:GetMetrics()
+	return table.freeze({
+		Steps = self.Metrics.Steps,
+		Frame = self.Metrics.Frame,
+		Hitboxes = self.Metrics.Hitboxes,
+		Hurtboxes = self.Metrics.Hurtboxes,
+		CandidatePairs = self.Metrics.CandidatePairs,
+		FilteredPairs = self.Metrics.FilteredPairs,
+		PairsTested = self.Metrics.PairsTested,
+		Contacts = self.Metrics.Contacts,
+		FirstContacts = self.Metrics.FirstContacts,
+		ContinuousContacts = self.Metrics.ContinuousContacts,
+		CumulativeCandidatePairs = self.Metrics.CumulativeCandidatePairs,
+		CumulativeFilteredPairs = self.Metrics.CumulativeFilteredPairs,
+		CumulativePairsTested = self.Metrics.CumulativePairsTested,
+		CumulativeContacts = self.Metrics.CumulativeContacts,
+		CumulativeFirstContacts = self.Metrics.CumulativeFirstContacts,
+		CumulativeContinuousContacts = self.Metrics.CumulativeContinuousContacts,
+	})
+end
+
+function CollisionWorld:ResetMetrics()
+	self.Metrics.Steps = 0
+	self.Metrics.Frame = self.Frame
+	self.Metrics.Hitboxes = #self:GetHitboxes()
+	self.Metrics.Hurtboxes = #self:GetHurtboxes()
+	self.Metrics.CandidatePairs = 0
+	self.Metrics.FilteredPairs = 0
+	self.Metrics.PairsTested = 0
+	self.Metrics.Contacts = 0
+	self.Metrics.FirstContacts = 0
+	self.Metrics.ContinuousContacts = 0
+	self.Metrics.CumulativeCandidatePairs = 0
+	self.Metrics.CumulativeFilteredPairs = 0
+	self.Metrics.CumulativePairsTested = 0
+	self.Metrics.CumulativeContacts = 0
+	self.Metrics.CumulativeFirstContacts = 0
+	self.Metrics.CumulativeContinuousContacts = 0
+	return self:GetMetrics()
+end
+
 function CollisionWorld:RemoveEntity(entity)
 	for _, hitbox in ipairs(self:GetHitboxes()) do
 		local instance = hitbox.AttackInstance
@@ -328,6 +387,16 @@ function CollisionWorld:Step(deltaTime, frame, time)
 	local hurtboxes = self:GetHurtboxes()
 	local nextActivePairs = {}
 	local results = {}
+	self.Metrics.Steps += 1
+	self.Metrics.Frame = frame
+	self.Metrics.Hitboxes = #hitboxes
+	self.Metrics.Hurtboxes = #hurtboxes
+	self.Metrics.CandidatePairs = 0
+	self.Metrics.FilteredPairs = 0
+	self.Metrics.PairsTested = 0
+	self.Metrics.Contacts = 0
+	self.Metrics.FirstContacts = 0
+	self.Metrics.ContinuousContacts = 0
 
 	for _, hitbox in ipairs(hitboxes) do
 		local attackOwner = hitbox.Owner
@@ -339,40 +408,57 @@ function CollisionWorld:Step(deltaTime, frame, time)
 			for _, hurtbox in ipairs(hurtboxes) do
 				local distinctOwners = attackOwner == nil or hurtbox.Owner == nil
 					or attackOwner ~= hurtbox.Owner
-				if hurtbox:IsEnabled() and isOwnerActive(hurtbox.Owner) and distinctOwners
-					and CollisionFilter.AllowsPair(hitbox, hurtbox) then
-					local intersects
-					if hitbox.Swept == true then
-						local hitboxStart = self.PreviousPositions[hitbox] or hitbox.Position
-						local hurtboxStart = self.PreviousPositions[hurtbox] or hurtbox.Position
-						intersects = CollisionQuery.SweptIntersects(hitbox, hurtbox, hitboxStart, hurtboxStart)
-					else
-						intersects = CollisionQuery.Intersects(hitbox, hurtbox)
-					end
-					if intersects then
-						local previousHurtboxes = self.ActivePairs[hitbox]
-						local isContinuous = previousHurtboxes ~= nil and previousHurtboxes[hurtbox] == true
-						local currentHurtboxes = nextActivePairs[hitbox]
-						if currentHurtboxes == nil then
-							currentHurtboxes = {}
-							nextActivePairs[hitbox] = currentHurtboxes
+				if hurtbox:IsEnabled() and isOwnerActive(hurtbox.Owner) and distinctOwners then
+					self.Metrics.CandidatePairs += 1
+					if CollisionFilter.AllowsPair(hitbox, hurtbox) then
+						self.Metrics.FilteredPairs += 1
+						self.Metrics.PairsTested += 1
+						local intersects
+						if hitbox.Swept == true then
+							local hitboxStart = self.PreviousPositions[hitbox] or hitbox.Position
+							local hurtboxStart = self.PreviousPositions[hurtbox] or hurtbox.Position
+							intersects = CollisionQuery.SweptIntersects(hitbox, hurtbox, hitboxStart, hurtboxStart)
+						else
+							intersects = CollisionQuery.Intersects(hitbox, hurtbox)
 						end
-						currentHurtboxes[hurtbox] = true
+						if intersects then
+							local previousHurtboxes = self.ActivePairs[hitbox]
+							local isContinuous = previousHurtboxes ~= nil and previousHurtboxes[hurtbox] == true
+							local currentHurtboxes = nextActivePairs[hitbox]
+							self.Metrics.Contacts += 1
+							if isContinuous then
+								self.Metrics.ContinuousContacts += 1
+							else
+								self.Metrics.FirstContacts += 1
+							end
+							if currentHurtboxes == nil then
+								currentHurtboxes = {}
+								nextActivePairs[hitbox] = currentHurtboxes
+							end
+							currentHurtboxes[hurtbox] = true
 
-						table.insert(results, {
-							Hitbox = hitbox,
-							Hurtbox = hurtbox,
-							Attacker = attackOwner,
-							Target = hurtbox.Owner,
-							ContactType = isContinuous and "Continuous" or "FirstContact",
-							IsFirstContact = not isContinuous,
-							IsContinuous = isContinuous,
-						})
+							table.insert(results, {
+								Hitbox = hitbox,
+								Hurtbox = hurtbox,
+								Attacker = attackOwner,
+								Target = hurtbox.Owner,
+								ContactType = isContinuous and "Continuous" or "FirstContact",
+								IsFirstContact = not isContinuous,
+								IsContinuous = isContinuous,
+							})
+						end
 					end
 				end
 			end
 		end
 	end
+
+	self.Metrics.CumulativeCandidatePairs += self.Metrics.CandidatePairs
+	self.Metrics.CumulativeFilteredPairs += self.Metrics.FilteredPairs
+	self.Metrics.CumulativePairsTested += self.Metrics.PairsTested
+	self.Metrics.CumulativeContacts += self.Metrics.Contacts
+	self.Metrics.CumulativeFirstContacts += self.Metrics.FirstContacts
+	self.Metrics.CumulativeContinuousContacts += self.Metrics.ContinuousContacts
 
 	self.ActivePairs = nextActivePairs
 	self.Results = results

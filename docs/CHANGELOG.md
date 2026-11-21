@@ -82,6 +82,20 @@ pacote. As versões de schema/manifest são independentes da versão SemVer.
 - Filtros de colisão por grupo nomeado e máscaras allowlist opcionais em Hitbox
   e Hurtbox; máscara ausente preserva a compatibilidade aceitando todos os
   grupos, e snapshots/factories preservam filtros configurados.
+- Diagnóstico não autoritativo de colisão por último passo e acumulado,
+  incluindo candidatos, pares filtrados/testados e contatos novos/contínuos,
+  disponível em `CollisionWorld:GetMetrics()` e `World:GetDiagnostics`,
+  com `CollisionWorld:ResetMetrics()` para reiniciar contadores isoladamente.
+- Estado autoritativo de projéteis, consultas externas, efeitos de
+  apresentação, relatório de prontidão de restore, budgets de desempenho e
+  inspeção de timeline foram adicionados ao facade público.
+- Em 20 nov 2026, `CombatTestRunner` passou os 65 testes no Roblox Studio.
+- Adicionada coordenação independente de transporte por `CombatSession`.
+- Adicionado `AdapterConformance` para declarar e validar garantias de adapters.
+- `Presentation` passou a oferecer interpolação visual de `Vector3` e `CFrame`.
+- Na execução do incremento de sessão, a suíte passou novamente com 65 testes;
+  o benchmark reportou `restored=true` e médias atualizadas de captura,
+  serialização, colisão, restore e replay.
 
 ### Limites
 

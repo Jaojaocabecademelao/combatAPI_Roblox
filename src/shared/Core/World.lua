@@ -217,6 +217,7 @@ function World:GetDiagnostics()
 		Frame = self.CurrentFrame,
 		Rollback = self.RollbackResolver:GetMetrics(),
 		Network = self.NetworkResolver:GetMetrics(),
+		Collision = self.CollisionWorld and self.CollisionWorld:GetMetrics() or nil,
 		ForbiddenOperations = forbidden,
 		DeterminismViolations = self:GetDeterminismViolations(),
 	}

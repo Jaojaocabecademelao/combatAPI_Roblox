@@ -53,7 +53,12 @@ de teste com dois clientes.
 - `CombatTest.lua`: cobertura das consultas geométricas Box/Box, Box/Sphere e
   Sphere/Sphere varridas, incluindo caminhos sem contato e integração opt-in no
   `CollisionWorld`; verifica também allowlists mútuas, rejeição de máscara e
-  compatibilidade do padrão sem máscara.
+  compatibilidade do padrão sem máscara. Também verifica contagens por passo,
+  acumuladas e exposição dos diagnósticos de colisão via `World`.
+- `CombatImprovementsTest.lua`: cobre projéteis determinísticos,
+  consultas externas reproduzíveis, efeitos de apresentação, prontidão de
+  restore, budgets de desempenho, inspeção de timeline, sessão de combate e
+  conformidade de adapters.
 - `CombatTopologyRebuildRollbackTest.lua`: reconstrução de instâncias e
   rejeição de overrides inválidos no caminho de rebuild da topologia.
 - `CombatStateSchemaTest.lua`: migração de schema 2 para 3 e rejeição de

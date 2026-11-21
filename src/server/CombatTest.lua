@@ -167,6 +167,8 @@ disabledSweptHitbox:SetEnabled(true)
 sweptCollisionWorld:Step(1 / 60)
 assert(#sweptCollisionWorld:GetResults() == 0,
 	"Disabled regions should advance their sweep origin without accumulating motion")
+ sweptCollisionWorld:RemoveHitbox(disabledSweptHitbox)
+ sweptCollisionWorld:RemoveHurtbox(disabledSweepTarget)
 
 local filteredHitbox = Hitbox.new({
 	Shape = "Sphere",
@@ -231,6 +233,42 @@ assert(not pcall(Hitbox.new, {
 	Radius = 1,
 	CollisionMask = { "Body", "Body" },
 }), "Duplicate collision mask groups should be rejected")
+
+local metricsWorld = World.new()
+local metricsCollisionWorld = CollisionWorld.new(metricsWorld)
+local metricsHitbox = Hitbox.new({ Shape = "Sphere", Radius = 1 })
+local metricsHurtbox = Hurtbox.new({ Shape = "Sphere", Radius = 1 })
+metricsCollisionWorld:RegisterHitbox(metricsHitbox)
+metricsCollisionWorld:RegisterHurtbox(metricsHurtbox)
+metricsCollisionWorld:Step(1 / 60)
+local firstMetrics = metricsCollisionWorld:GetMetrics()
+assert(firstMetrics.CandidatePairs == 1
+	and firstMetrics.FilteredPairs == 1
+	and firstMetrics.PairsTested == 1
+	and firstMetrics.Contacts == 1
+	and firstMetrics.FirstContacts == 1
+	and firstMetrics.ContinuousContacts == 0,
+	"CollisionWorld should report per-step candidate, test, and first-contact metrics")
+metricsCollisionWorld:Step(1 / 60)
+local secondMetrics = metricsCollisionWorld:GetMetrics()
+assert(secondMetrics.Contacts == 1
+	and secondMetrics.FirstContacts == 0
+	and secondMetrics.ContinuousContacts == 1
+	and secondMetrics.CumulativeContacts == 2
+	and secondMetrics.CumulativeFirstContacts == 1
+	and secondMetrics.CumulativeContinuousContacts == 1,
+	"CollisionWorld should distinguish first and continuous contacts cumulatively")
+assert(metricsWorld:GetDiagnostics().Collision.Contacts == 1,
+	"World diagnostics should expose the attached CollisionWorld metrics")
+assert(table.isfrozen(firstMetrics), "Collision metrics snapshots should be frozen")
+local resetMetrics = metricsCollisionWorld:ResetMetrics()
+assert(resetMetrics.Steps == 0
+	and resetMetrics.CumulativeCandidatePairs == 0
+	and resetMetrics.CumulativeContacts == 0
+	and resetMetrics.Hitboxes == 1
+	and resetMetrics.Hurtboxes == 1,
+	"ResetMetrics should clear cumulative/per-step counters without changing regions")
+metricsWorld:Destroy()
 sweptWorld:Destroy()
 
 -- CollisionWorld owns registration, contact state, and resolution; attached regions register automatically.

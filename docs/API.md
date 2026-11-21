@@ -78,6 +78,25 @@ After restore, reacquire collision regions by stable ID from
 lists are sorted by region ID and the objects may have been reconstructed.
 `world:GetDiagnostics().ForbiddenOperations` records rejected mutating
 operations attempted during rollback/replay.
+`CollisionWorld:GetMetrics()` reports the latest step and cumulative collision
+counts: registered region counts, candidate/filter-tested pairs, contacts,
+first contacts, and continuous contacts. `world:GetDiagnostics().Collision`
+exposes the same snapshot for the attached CollisionWorld. These metrics are
+presentation/debugging data, are copied and frozen on read, and do not affect
+collision or hit resolution. `CollisionWorld:ResetMetrics()` clears step and
+cumulative counters while preserving registered regions and collision state.
+`Projectile` provides authoritative deterministic position, velocity,
+acceleration, drag, lifetime, reflection/stop/pass-through/destruction
+policies, and serializable snapshots. `SceneQuery` wraps external facts with
+replay-safe request/outcome capture and explicit missing-result policies.
+`Presentation` keeps speculative, confirmed, cancelled and replaced effects
+with stable IDs. `RestoreReadiness` reports rollback providers and external
+dependencies; `PerformanceBudget` checks named metrics; `ActionTimeline`
+exposes phases and declared gameplay events by frame.
+`CombatSession` coordinates peer inputs, confirmation, prediction, divergence,
+and rollback requests without owning a network transport.
+`AdapterConformance` reports execution-context and rollback guarantees for
+authoritative and presentation adapters.
 `world:AssertDeterministicOperation(operation, details)` and
 `world:GetDeterminismViolations()` expose the simulation determinism guard for
 plugin and adapter code. Each violation includes a monotonic `Sequence` and

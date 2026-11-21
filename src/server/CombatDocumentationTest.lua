@@ -136,7 +136,7 @@ local documentedTests = {
 	"CombatStateSchemaTest.lua", "CombatStatusContainerRollbackTest.lua",
 	"CombatStatusEffectsTest.lua", "CombatTimeEffectTest.lua",
 	"CombatTopologyRebuildRollbackTest.lua", "HitstopComponentRollbackTest.lua",
-	"HitstopResolverRollbackTest.lua",
+	"HitstopResolverRollbackTest.lua", "CombatImprovementsTest.lua",
 }
 local mountedTestModules = {}
 for _, child in ipairs(ServerTests:GetChildren()) do

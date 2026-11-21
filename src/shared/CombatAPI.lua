@@ -28,8 +28,15 @@ local Hurtbox = require(script.Parent.Combat.Hurtbox)
 local OffensiveProperties = require(script.Parent.Combat.OffensiveProperties)
 local CombatStateSchema = require(script.Parent.Combat.CombatStateSchema)
 local CombatAPITypes = require(script.Parent.CombatAPITypes)
+local Projectile = require(script.Parent.Combat.Projectile)
+local SceneQuery = require(script.Parent.Combat.SceneQuery)
+local Presentation = require(script.Parent.Combat.Presentation)
+local RestoreReadiness = require(script.Parent.Combat.RestoreReadiness)
+local PerformanceBudget = require(script.Parent.Combat.PerformanceBudget)
+local ActionTimeline = require(script.Parent.Combat.ActionTimeline)
+local CombatSession = require(script.Parent.Combat.CombatSession)
+local AdapterConformance = require(script.Parent.Combat.AdapterConformance)
 type PublicCombatAPI = CombatAPITypes.CombatAPI
-type CombatTypes = require(script.Parent.CombatAPITypes)
 type WorldType = CombatAPITypes.World
 type APIResultType<T> = CombatAPITypes.APIResult<T>
 type PluginResolverResult = CombatAPITypes.PluginResolverResult
@@ -112,7 +119,7 @@ function CombatAPI.DisablePlugin(world: WorldType, id: string): APIResultType<Pl
 	local result: PluginResolverResult=resolver:DisablePlugin(id)
 	return wrapPluginResult(result, world)
 end
-export type API = CombatTypes.CombatAPI
+export type API = CombatAPITypes.CombatAPI
 CombatAPI.APIContext = APIContext
 CombatAPI.Simulation = Simulation
 CombatAPI.EventTypes = EventTypes
@@ -138,4 +145,12 @@ CombatAPI.CollisionWorld = CollisionWorld
 CombatAPI.Hitbox = Hitbox
 CombatAPI.Hurtbox = Hurtbox
 CombatAPI.OffensiveProperties = OffensiveProperties
+CombatAPI.Projectile = Projectile
+CombatAPI.SceneQuery = SceneQuery
+CombatAPI.Presentation = Presentation
+CombatAPI.RestoreReadiness = RestoreReadiness
+CombatAPI.PerformanceBudget = PerformanceBudget
+CombatAPI.ActionTimeline = ActionTimeline
+CombatAPI.CombatSession = CombatSession
+CombatAPI.AdapterConformance = AdapterConformance
 return table.freeze(CombatAPI) :: PublicCombatAPI

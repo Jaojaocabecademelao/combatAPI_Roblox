@@ -1,6 +1,6 @@
 # Status da implementação — CustomData
 
-Data da revisão: 2026-11-12
+Data da revisão: 2026-11-20
 
 Este relatório acompanha o plano `combatapi-customdata-plano.md`. Ele distingue a
 presença estática de código/testes da aprovação em runtime. Nenhuma fase que
@@ -9,21 +9,45 @@ os resultados dessa execução.
 
 | Fase | Estado nesta revisão | Evidência / pendência |
 |---|---|---|
-| 0 — Preparação | Parcial | A suíte completa mais recente foi confirmada sem erros no Roblox Studio. Há uma medição registrada abaixo, mas não existe benchmark pré-CustomData comparável; a linha de base de performance ainda está pendente. |
-| 1 — Núcleo do dado | Testes de runtime passaram | `CombatAttackCustomDataTest` e a suíte completa passaram na execução Studio mais recente, confirmada pelo usuário. |
-| 2 — Instância e acerto | Testes de runtime passaram | A suíte completa passou na execução Studio mais recente, confirmada pelo usuário. |
-| 3 e 4 — Catálogo, snapshot e schema | Testes de runtime passaram | A suíte completa, incluindo catálogo, migração, rollback de colisão e rebuild de topologia, passou na execução Studio mais recente, confirmada pelo usuário. |
-| 5 — Eventos públicos | Testes de runtime passaram | A suíte completa, incluindo `CombatEventAPITest`, passou na execução Studio mais recente, confirmada pelo usuário. |
-| 6 — Determinismo, replay e performance | Replay passou; benchmark medido sem baseline comparável | A suíte completa passou. O benchmark coletou tempos e tamanho de snapshot com/sem overrides; ainda não há medição pré-CustomData para avaliar regressão. |
-| 7 — Documentação e changelog | Testes de runtime passaram | `CombatDocumentationTest` e `CombatDocumentationExamplesTest` passaram na execução Studio mais recente, confirmada pelo usuário. |
+| 0 — Preparação | Concluída para a execução atual | Studio confirmou `CombatTestRunner: PASS (65 tests)` após a correção dos aliases sintáticos. |
+| 1 — Núcleo do dado | Testes de runtime passaram | `CombatAttackCustomDataTest` passou com 25 assertions na execução Studio atual. |
+| 2 — Instância e acerto | Testes de runtime passaram | Instância, fallback e propagação passaram na suíte atual. |
+| 3 e 4 — Catálogo, snapshot e schema | Testes de runtime passaram | Catálogo, migração, rollback de colisão e rebuild passaram na suíte atual. |
+| 5 — Eventos públicos | Testes de runtime passaram | `CombatEventAPITest` passou com 360 assertions na execução atual. |
+| 6 — Determinismo, replay e performance | Replay passou; benchmark concluído sem baseline pré-CustomData | Replay, determinismo e novos diagnósticos passaram. O baseline pré-CustomData continua ausente. |
+| 7 — Documentação e changelog | Testes de runtime passaram | `CombatDocumentationTest` passou com 584 assertions na execução atual. |
+
+## Incremento adicional — diagnóstico de custo de colisão
+
+- `CollisionWorld:GetMetrics()` agora expõe contagens do último passo e totais
+  acumulados sem participar do snapshot, da resolução ou da ordem de contatos.
+- `World:GetDiagnostics().Collision` publica as mesmas métricas quando o
+  CollisionWorld está anexado. `ResetMetrics()` limpa contadores acumulados e
+  por passo sem remover regiões. A análise Luau e a execução Studio desta
+  superfície ainda estão pendentes.
 
 ## Verificações estáticas realizadas
 
-- O inventário documentado contém exatamente os módulos automatizados `*Test.lua`; o smoke multiplayer permanece registrado separadamente como Script.
+- O inventário documentado contém exatamente os 65 módulos automatizados
+  `*Test.lua`; o smoke multiplayer permanece registrado separadamente como Script.
 - Os pontos centrais de `CustomData` estão presentes: normalização, merge raso,
   fallback do `HitProcessor`, manifest v2, migração do schema v3, snapshots e
   encaminhamento aos eventos públicos.
 - O teste novo de replay está incluído no inventário de documentação.
+- O incremento atual implementa `Projectile`, `SceneQuery`, `Presentation`,
+  `RestoreReadiness`, `PerformanceBudget` e `ActionTimeline`; o teste
+  `CombatImprovementsTest` verifica os seis módulos pela superfície compartilhada.
+
+## Regressão de sintaxe Studio — 2026-11-20
+
+- Uma execução recente carregou 64 módulos, mas 56 falharam em cascata porque
+  módulos compartilhados reportavam `Incomplete statement` em aliases
+  `type CombatTypes = require(...)`.
+- Os aliases incompatíveis foram removidos dos módulos `CombatAPI`,
+  `APIContext`, `OffensiveProperties` e `EventTypes`; as referências passaram a
+  usar módulos já importados ou contratos tipados locais.
+- A próxima execução Studio deve confirmar a carga de todos os módulos antes de
+  declarar a suíte novamente aprovada.
 
 ## Última execução no Roblox Studio — 2026-11-11
 
@@ -42,8 +66,8 @@ os resultados dessa execução.
   `rbxassetid://203785492` por incompatibilidade de tipo do asset; não são
   resultados de `TEST FAIL`. A confirmação mais recente do usuário reporta
   uma execução sem erros.
-- O smoke multiplayer continua pendente: logs anteriores registraram zero
-  clientes no início e um cliente conectado, sem resultado de conclusão.
+- O smoke multiplayer continua pendente: na execução atual o servidor registrou
+  um cliente (`4753676348`) conectado, mas não houve dois clientes demonstrados.
 
 Benchmark reportado com `entities=32`, `volumes=64`, `attackInstances=32`,
 `frames=30`, `repetitions=3`:
@@ -63,6 +87,58 @@ Benchmark reportado com `entities=32`, `volumes=64`, `attackInstances=32`,
 Uma execução anterior no mesmo log de trabalho usou a mesma configuração, mas
 também não é uma linha de base pré-CustomData. Diferenças pequenas de tempo entre
 essas duas execuções não são suficientes para concluir regressão ou ganho.
+
+## Execução Studio — 20 nov 2026
+
+- `CombatTestRunner: PASS (65 tests)`: todos os módulos automatizados passaram.
+- `CombatImprovementsTest` passou após congelamento idempotente em
+  `StateSerializer.Freeze` e serialização de vetores de contatos.
+- `CombatTest` passou após remover regiões desabilitadas residuais que
+  contaminavam o cenário de máscara de colisão.
+- Benchmark desta execução: `capture=0.001450 s`,
+  `serialize=0.000540 s`, `validateCollision=0.000426 s`,
+  `prepareRestore=0.000508 s`, `step=0.047419 s`,
+  `restoreReplay=0.045429 s`, `restored=true`.
+
+## Execução Studio — 20 nov 2026, incremento de sessão
+
+- `CombatTestRunner: PASS (65 tests)`: a suíte passou novamente após adicionar
+  `CombatSession` e `AdapterConformance`.
+- `CombatImprovementsTest` passou, cobrindo sessão, conformidade,
+  interpolação visual, projéteis, consulta externa, restore, orçamento e
+  timeline.
+- Smoke do servidor iniciou com `connected players: 0` e posteriormente
+  registrou um cliente. Não foi confirmado smoke com dois clientes.
+- Benchmark desta execução: `capture=0.001622 s`,
+  `serialize=0.000563 s`, `validateCollision=0.000348 s`,
+  `prepareRestore=0.000471 s`, `step=0.046977 s`,
+  `restoreReplay=0.052585 s`, `restored=true`.
+
+## Estado atual do roadmap API_MELHORIAS
+
+| Direção | Estado atual |
+|---|---|
+| 1 — Ações declarativas | Implementada em parte substantiva: definicoes, requisitos, custos, timeline, eventos, catálogo e validação de handlers. |
+| 2 — Colisão expressiva | Implementada: sweep opt-in, grupos/máscaras, snapshots, restauração e métricas por passo. |
+| 3 — Consultas externas | Implementada em parte: `ExternalFactJournal` e `SceneQuery` registram request/outcome e políticas de fato ausente. |
+| 4 — Projéteis reproduzíveis | Implementada em base: estado lógico, velocidade, aceleração, drag, lifetime, políticas de contato e snapshots. |
+| 5 — Timeline e autoria | Implementada em dados: `ActionTimeline` expõe fases e eventos por frame; não há editor visual Studio. |
+| 6 — Rede/prediction/reconciliation | Implementada em composição: resolvers existentes mais `CombatSession` independente de transporte. |
+| 7 — Restore/determinismo | Implementada em parte: `RestoreReadiness`, `DeterminismGuard`, snapshots, migrações e diagnóstico por frame. |
+| 8 — Apresentação | Implementada em parte: estados especulativos, confirmação, cancelamento, substituição e interpolação; integrações visuais específicas ficam no jogo. |
+| 9 — Versionar conteúdo | Implementado nos catálogos de ataque, ação e topologia; migrações explícitas já existem. |
+| 10 — Capacidades de extensões | Implementado em parte: plugins/capabilities e `AdapterConformance`; sandbox físico não foi prometido. |
+| 11 — Replay/inspeção | Implementado: frames defensivos, ranges e primeira divergência. |
+| 12 — Métricas/budgets | Implementado em parte: métricas de rollback/rede/colisão e `PerformanceBudget`; agregação temporal por sistema ainda pode ser ampliada. |
+| 13 — Testes/conformidade | Implementado em parte: 65 testes, benchmark e `AdapterConformance`; smoke multiplayer com dois clientes continua pendente. |
+
+## Pendências conclusivas
+
+- Smoke multiplayer com dois clientes e métricas de ambos os lados.
+- Editor visual de timeline no Studio.
+- Baseline pré-CustomData comparável.
+- Conformidade temporal agregada por sistema, não somente por módulo.
+- Consolidação final das pendências históricas contraditórias no documento.
 
 ## Pendências para fechar as fases
 

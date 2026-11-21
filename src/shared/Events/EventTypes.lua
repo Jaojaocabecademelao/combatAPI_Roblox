@@ -1,8 +1,8 @@
 --!strict
 
-type CombatTypes = require(script.Parent.Parent.CombatAPITypes)
+local Types = require(script.Parent.Parent.CombatAPITypes)
 
-export type EventType = CombatTypes.EventType
+export type EventType = Types.EventType
 
 return table.freeze({
 	EntityCreated = "EntityCreated", EntityDestroyed = "EntityDestroyed", EntityRespawned = "EntityRespawned",

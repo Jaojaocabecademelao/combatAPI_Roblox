@@ -32,6 +32,14 @@ rollback, determinismo, autoridade e compatibilidade dependem do estado e das
 integrações que participam de cada partida. Os contratos atuais continuam
 sendo a referência para o comportamento existente.
 
+## Estado de implementação nesta revisão
+
+As implementações atuais cobrem eventos declarativos, colisão expressiva,
+fatos externos, projéteis autoritativos, apresentação, restore readiness,
+diagnósticos de replay, budgets e conformidade de adapters. Uma proposta visual
+ou uma garantia de transporte só é considerada implementada quando existe um
+contrato testável no código; pseudocódigo e ideias ainda não são APIs públicas.
+
 ## Ponto de partida: o que a API já representa
 
 A CombatAPI organiza o combate em torno de `World`, entidades, componentes,

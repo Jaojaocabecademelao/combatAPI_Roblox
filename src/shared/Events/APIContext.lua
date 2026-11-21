@@ -6,7 +6,6 @@ local APIError = require(script.Parent.APIError)
 local ResolverErrorMap = require(script.Parent.ResolverErrorMap)
 local EventBus = require(script.Parent.EventBus)
 
-type CombatTypes = require(script.Parent.Parent.CombatAPITypes)
 type World = Types.World
 type APIContextType = Types.APIContext
 type APIErrorType = Types.APIError
@@ -20,7 +19,7 @@ type PluginProfileOptions = Types.PluginProfileOptions
 type PluginImplementation = Types.PluginImplementation
 type PluginResolverResult = Types.PluginResolverResult
 
-export type Context = CombatTypes.APIContext
+export type Context = Types.APIContext
 
 local APIContext: any = {}
 APIContext.__index = APIContext

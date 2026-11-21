@@ -4,7 +4,6 @@ local Types = require(script.Parent.Parent.CombatAPITypes)
 local Damage = require(script.Parent.Damage)
 local Serializer = require(script.Parent.Parent.Simulation.StateSerializer)
 
-type CombatTypes = require(script.Parent.Parent.CombatAPITypes)
 type CustomData = Types.CustomData
 type DamageValue = Types.Damage
 type OffensivePropertiesType = Types.OffensiveProperties
@@ -12,7 +11,7 @@ type OffensivePropertiesOptions = Types.OffensivePropertiesOptions
 type OffensivePropertiesModule = Types.OffensivePropertiesModule
 type Limits = { MaxEntries: number, MaxDepth: number }
 
-export type Properties = CombatTypes.OffensiveProperties
+export type Properties = Types.OffensiveProperties
 
 local OffensiveProperties: OffensivePropertiesModule = {}
 

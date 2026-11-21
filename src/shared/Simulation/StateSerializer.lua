@@ -101,6 +101,9 @@ end
 local function freezeValue(value)
 	if type(value) ~= "table" then return value end
 	assert(type(table.freeze) == "function", "StateSerializer requires table.freeze() in this runtime")
+	if table.isfrozen(value) then
+		return value
+	end
 	for _, child in pairs(value) do freezeValue(child) end
 	return table.freeze(value)
 end
